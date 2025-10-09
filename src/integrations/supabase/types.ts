@@ -58,6 +58,141 @@ export type Database = {
           },
         ]
       }
+      query_templates: {
+        Row: {
+          created_at: string
+          default_pages: number
+          description: string | null
+          id: string
+          name: string
+          query_pattern: string
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_pages?: number
+          description?: string | null
+          id?: string
+          name: string
+          query_pattern: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_pages?: number
+          description?: string | null
+          id?: string
+          name?: string
+          query_pattern?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      search_batches: {
+        Row: {
+          completed_at: string | null
+          completed_jobs: number
+          created_at: string
+          delay_seconds: number
+          description: string | null
+          failed_jobs: number
+          id: string
+          name: string
+          started_at: string | null
+          status: string
+          total_jobs: number
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_jobs?: number
+          created_at?: string
+          delay_seconds?: number
+          description?: string | null
+          failed_jobs?: number
+          id?: string
+          name: string
+          started_at?: string | null
+          status?: string
+          total_jobs?: number
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_jobs?: number
+          created_at?: string
+          delay_seconds?: number
+          description?: string | null
+          failed_jobs?: number
+          id?: string
+          name?: string
+          started_at?: string | null
+          status?: string
+          total_jobs?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      search_jobs: {
+        Row: {
+          batch_id: string
+          created_at: string
+          error_message: string | null
+          executed_at: string | null
+          id: string
+          location: string | null
+          pages: number
+          query: string
+          result_count: number | null
+          search_id: string | null
+          status: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          location?: string | null
+          pages?: number
+          query: string
+          result_count?: number | null
+          search_id?: string | null
+          status?: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          location?: string | null
+          pages?: number
+          query?: string
+          result_count?: number | null
+          search_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "search_jobs_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "search_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "search_jobs_search_id_fkey"
+            columns: ["search_id"]
+            isOneToOne: false
+            referencedRelation: "searches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       searches: {
         Row: {
           created_at: string
