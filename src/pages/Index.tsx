@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Database } from "lucide-react";
+import logo from "@/assets/logo.png";
 
 interface Contact {
   id: string;
@@ -71,11 +72,12 @@ const Index = () => {
       <div className="container mx-auto px-4 py-8">
         <header className="mb-12">
           <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent mb-2">
-                BlueLink LeadGen
-              </h1>
-              <p className="text-muted-foreground text-lg">Motore di ricerca contatti professionale</p>
+            <div className="flex items-center gap-4">
+              <img src={logo} alt="BluelimeLeads.com" className="h-16 w-16" />
+              <div>
+                <h1 className="text-4xl font-bold text-foreground">BluelimeLeads.com</h1>
+                <p className="text-muted-foreground text-lg">Motore di ricerca contatti professionale</p>
+              </div>
             </div>
             <div className="flex gap-3">
               <Button onClick={() => navigate('/auth')} variant="outline">

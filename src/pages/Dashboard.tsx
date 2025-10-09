@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Mail, ArrowLeft, Zap, LogOut } from "lucide-react";
+import logo from "@/assets/logo.png";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import GlobalMap from "@/components/GlobalMap";
@@ -49,11 +50,12 @@ const Dashboard = () => {
       <div className="container mx-auto px-4 py-8">
         {/* Header with Actions */}
         <header className="flex justify-between items-center mb-12">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              BlueLink LeadGen
-            </h1>
-            <p className="text-muted-foreground mt-1">Dashboard centrale</p>
+          <div className="flex items-center gap-4">
+            <img src={logo} alt="BluelimeLeads.com" className="h-14 w-14" />
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">BluelimeLeads.com</h1>
+              <p className="text-muted-foreground mt-1">Dashboard centrale</p>
+            </div>
           </div>
           <Button onClick={handleLogout} variant="outline" size="sm">
             <LogOut className="mr-2 h-4 w-4" />
