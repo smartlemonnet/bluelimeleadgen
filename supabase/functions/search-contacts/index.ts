@@ -12,11 +12,6 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('No authorization header');
-    }
-
     const { query, location, pages = 1 } = await req.json();
     
     if (!query) {
@@ -38,31 +33,36 @@ serve(async (req) => {
       throw new Error('SERPER_API_KEY not configured');
     }
 
-    // Save search to database first
+    // Initialize Supabase client
+    const authHeader = req.headers.get('Authorization');
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Get user from auth
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      throw new Error('User not authenticated');
+    // Try to get user if authenticated
+    let userId: string | null = null;
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await supabase.auth.getUser(token);
+      userId = user?.id || null;
     }
 
-    const { data: searchData, error: searchError } = await supabase
-      .from('searches')
-      .insert({ query, location, user_id: user.id })
-      .select()
-      .single();
+    // Save search to database if user is authenticated
+    let searchId: string | null = null;
+    if (userId) {
+      const { data: searchData, error: searchError } = await supabase
+        .from('searches')
+        .insert({ query, location, user_id: userId })
+        .select()
+        .single();
 
-    if (searchError) {
-      console.error('Error saving search:', searchError);
-      throw new Error('Failed to save search');
+      if (searchError) {
+        console.error('Error saving search:', searchError);
+      } else {
+        searchId = searchData.id;
+      }
     }
-
-    const searchId = searchData.id;
     const allContacts: any[] = [];
     const seenEmails = new Set<string>();
 
@@ -96,7 +96,8 @@ serve(async (req) => {
         serperData, 
         searchId, 
         seenEmails,
-        supabase
+        supabase,
+        userId
       );
       
       allContacts.push(...pageContacts);
@@ -133,9 +134,10 @@ serve(async (req) => {
 
 async function extractContactsFromResults(
   serperData: any, 
-  searchId: string, 
+  searchId: string | null, 
   seenEmails: Set<string>,
-  supabase: any
+  supabase: any,
+  userId: string | null
 ) {
   const contacts: any[] = [];
   const results = serperData.organic || [];
@@ -159,7 +161,6 @@ async function extractContactsFromResults(
       seenEmails.add(email);
 
       const contact = {
-        search_id: searchId,
         email: email,
         name: extractName(title, snippet),
         organization: extractOrganization(title, snippet),
@@ -168,15 +169,20 @@ async function extractContactsFromResults(
         social_links: null,
       };
 
-      // Save to database
-      const { data: contactData, error: contactError } = await supabase
-        .from('contacts')
-        .insert(contact)
-        .select()
-        .single();
+      // Save to database only if user is authenticated and search was saved
+      if (userId && searchId) {
+        const { data: contactData, error: contactError } = await supabase
+          .from('contacts')
+          .insert({ ...contact, search_id: searchId })
+          .select()
+          .single();
 
-      if (!contactError && contactData) {
-        contacts.push(contactData);
+        if (!contactError && contactData) {
+          contacts.push(contactData);
+        }
+      } else {
+        // Return contact without saving
+        contacts.push(contact);
       }
     }
   }

@@ -1,1 +1,7 @@
 project_id = "wyxaheklcmomfdhpjkdn"
+
+[functions.search-contacts]
+verify_jwt = false
+
+[functions.process-search-queue]
+verify_jwt = false
