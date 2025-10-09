@@ -51,9 +51,9 @@ const Dashboard = () => {
         {/* Header with Actions */}
         <header className="flex justify-between items-center mb-12">
           <div className="flex items-center gap-4">
-            <img src={logo} alt="BluelimeLeads.com" className="h-14 w-14" />
+            <img src={logo} alt="BluelimeLeads.com" className="h-14 w-auto" style={{ width: '44.8px' }} />
             <div>
-              <h1 className="text-3xl font-bold text-foreground">BluelimeLeads.com</h1>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-green-500 to-blue-500 bg-clip-text text-transparent">BluelimeLeads.com</h1>
               <p className="text-muted-foreground mt-1">Dashboard centrale</p>
             </div>
           </div>

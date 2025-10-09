@@ -73,9 +73,9 @@ const Index = () => {
         <header className="mb-12">
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-4">
-              <img src={logo} alt="BluelimeLeads.com" className="h-16 w-16" />
+              <img src={logo} alt="BluelimeLeads.com" className="h-16 w-auto" style={{ width: '51.2px' }} />
               <div>
-                <h1 className="text-4xl font-bold text-foreground">BluelimeLeads.com</h1>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-green-500 to-blue-500 bg-clip-text text-transparent">BluelimeLeads.com</h1>
                 <p className="text-muted-foreground text-lg">Motore di ricerca contatti professionale</p>
               </div>
             </div>
