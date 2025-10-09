@@ -292,58 +292,75 @@ digital marketing,Hamburg,10`;
         </div>
 
         {showCreateForm && (
-          <Card>
+          <Card className="border-2 border-primary/30">
             <CardHeader>
-              <CardTitle>Crea Nuovo Batch</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <span className="text-primary">→</span> Crea Nuovo Batch
+              </CardTitle>
               <CardDescription>
-                Carica un CSV con le ricerche da eseguire automaticamente
+                <strong>Passaggi richiesti:</strong> 1️⃣ Nome batch, 2️⃣ Carica CSV
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="batchName">Nome Batch</Label>
-                  <Input
-                    id="batchName"
-                    placeholder="Es: Agenzie Marketing Germania"
-                    value={batchName}
-                    onChange={(e) => setBatchName(e.target.value)}
-                  />
+            <CardContent className="space-y-6">
+              {/* Step 1: Nome e Configurazione */}
+              <div className="space-y-4 p-4 rounded-lg bg-primary/5 border border-primary/20">
+                <h3 className="font-semibold text-primary flex items-center gap-2">
+                  1️⃣ Configurazione Base
+                </h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="batchName" className="text-foreground">
+                      Nome Batch <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="batchName"
+                      placeholder="Es: Agenzie Marketing Germania"
+                      value={batchName}
+                      onChange={(e) => setBatchName(e.target.value)}
+                      className={!batchName.trim() ? "border-destructive/50" : "border-primary/50"}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="delay" className="text-foreground">Delay tra ricerche (secondi)</Label>
+                    <Input
+                      id="delay"
+                      type="number"
+                      value={delaySeconds}
+                      onChange={(e) => setDelaySeconds(parseInt(e.target.value) || 120)}
+                    />
+                  </div>
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="delay">Delay tra ricerche (secondi)</Label>
-                  <Input
-                    id="delay"
-                    type="number"
-                    value={delaySeconds}
-                    onChange={(e) => setDelaySeconds(parseInt(e.target.value) || 120)}
+                  <Label htmlFor="description" className="text-foreground">Descrizione (opzionale)</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Descrivi l'obiettivo di questo batch..."
+                    value={batchDescription}
+                    onChange={(e) => setBatchDescription(e.target.value)}
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">Descrizione (opzionale)</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Descrivi l'obiettivo di questo batch..."
-                  value={batchDescription}
-                  onChange={(e) => setBatchDescription(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
+              {/* Step 2: CSV Upload */}
+              <div className="space-y-4 p-4 rounded-lg bg-secondary/5 border border-secondary/20">
                 <div className="flex items-center justify-between">
-                  <Label>File CSV</Label>
-                  <Button variant="link" size="sm" onClick={downloadTemplate}>
+                  <h3 className="font-semibold text-secondary flex items-center gap-2">
+                    2️⃣ Carica File CSV <span className="text-destructive">*</span>
+                  </h3>
+                  <Button variant="outline" size="sm" onClick={downloadTemplate}>
                     <Download className="mr-2 h-4 w-4" />
                     Scarica Template
                   </Button>
                 </div>
-                <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                  <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                
+                <div className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  csvContent ? 'border-secondary bg-secondary/10' : 'border-border'
+                }`}>
+                  <Upload className={`mx-auto h-12 w-12 mb-4 ${csvContent ? 'text-secondary' : 'text-muted-foreground'}`} />
                   <Label htmlFor="csvFile" className="cursor-pointer">
-                    <span className="text-primary hover:underline">
-                      Carica CSV
+                    <span className="text-primary hover:underline font-medium">
+                      {csvContent ? '✓ File Caricato - Clicca per sostituire' : 'Clicca per caricare CSV'}
                     </span>
                     <Input
                       id="csvFile"
@@ -354,18 +371,36 @@ digital marketing,Hamburg,10`;
                     />
                   </Label>
                   {csvContent && (
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      File caricato ({csvContent.split('\n').length - 1} righe)
-                    </p>
+                    <div className="mt-3 text-sm space-y-1">
+                      <p className="text-secondary font-semibold">
+                        ✓ {csvContent.split('\n').length - 1} ricerche caricate
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Formato: query, location, pages
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <Button onClick={createBatch} className="flex-1">
-                  Crea Batch
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4 border-t">
+                <Button 
+                  onClick={createBatch} 
+                  className="flex-1 bg-primary hover:bg-primary/90"
+                  disabled={!batchName.trim() || !csvContent.trim()}
+                >
+                  {!batchName.trim() || !csvContent.trim() ? 
+                    '⚠️ Completa tutti i campi obbligatori' : 
+                    '✓ Crea Batch'
+                  }
                 </Button>
-                <Button variant="outline" onClick={() => setShowCreateForm(false)}>
+                <Button variant="outline" onClick={() => {
+                  setShowCreateForm(false);
+                  setBatchName("");
+                  setBatchDescription("");
+                  setCsvContent("");
+                }}>
                   Annulla
                 </Button>
               </div>
