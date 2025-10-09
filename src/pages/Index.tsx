@@ -101,7 +101,7 @@ const Index = () => {
         </header>
 
         <div className="max-w-5xl mx-auto space-y-8">
-          <AdvancedQueryBuilder onQueryGenerated={handleQueryGenerated} />
+          <AdvancedQueryBuilder onQueryGenerated={handleQueryGenerated} onSearch={handleSearch} />
           
           {progress && (
             <div className="text-center py-4 bg-primary/10 border border-primary rounded-lg">

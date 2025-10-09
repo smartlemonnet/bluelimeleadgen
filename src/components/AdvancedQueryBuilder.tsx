@@ -9,9 +9,10 @@ import { X, Plus, Search } from "lucide-react";
 
 interface AdvancedQueryBuilderProps {
   onQueryGenerated: (query: string) => void;
+  onSearch: (query: string, location: string | undefined, pages: number) => void;
 }
 
-export const AdvancedQueryBuilder = ({ onQueryGenerated }: AdvancedQueryBuilderProps) => {
+export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQueryBuilderProps) => {
   const [keyword, setKeyword] = useState("");
   const [location, setLocation] = useState("");
   const [emailProviders, setEmailProviders] = useState<string[]>([]);
@@ -21,6 +22,7 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated }: AdvancedQueryBuilderP
   const [websites, setWebsites] = useState<string[]>([]);
   const [currentWebsite, setCurrentWebsite] = useState("");
   const [generatedQuery, setGeneratedQuery] = useState("");
+  const [pages, setPages] = useState(10);
 
   const addEmailProvider = () => {
     if (currentProvider && !emailProviders.includes(currentProvider)) {
@@ -78,6 +80,14 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated }: AdvancedQueryBuilderP
 
     setGeneratedQuery(query);
     onQueryGenerated(query);
+  };
+
+  const executeSearch = () => {
+    if (!generatedQuery) {
+      generateQuery();
+      return;
+    }
+    onSearch(generatedQuery, location || undefined, pages);
   };
 
   return (
@@ -200,17 +210,43 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated }: AdvancedQueryBuilderP
         </Button>
 
         {generatedQuery && (
-          <div className="space-y-2 p-4 bg-secondary/10 border border-secondary rounded-lg">
-            <Label className="text-secondary font-semibold">✓ Query generata con successo</Label>
-            <Textarea
-              value={generatedQuery}
-              readOnly
-              className="font-mono text-sm bg-background"
-              rows={4}
-            />
-            <p className="text-xs text-muted-foreground">
-              Questa query verrà utilizzata per la ricerca. Modifica i parametri sopra per rigenerarla.
-            </p>
+          <div className="space-y-4 p-4 bg-secondary/10 border-2 border-secondary rounded-lg">
+            <div className="space-y-2">
+              <Label className="text-secondary font-semibold">✓ Query generata con successo</Label>
+              <Textarea
+                value={generatedQuery}
+                readOnly
+                className="font-mono text-sm bg-background"
+                rows={4}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="pages" className="text-foreground">
+                Numero di pagine da analizzare
+              </Label>
+              <Input
+                id="pages"
+                type="number"
+                min="1"
+                max="100"
+                value={pages}
+                onChange={(e) => setPages(parseInt(e.target.value) || 10)}
+                className="w-32"
+              />
+              <p className="text-xs text-muted-foreground">
+                Ogni pagina contiene ~10 risultati. Più pagine = più contatti ma più tempo.
+              </p>
+            </div>
+
+            <Button 
+              onClick={executeSearch}
+              className="w-full bg-secondary hover:bg-secondary/90 text-lg font-semibold" 
+              size="lg"
+            >
+              <Search className="mr-2 h-6 w-6" />
+              🚀 Avvia Ricerca ({pages} {pages === 1 ? 'pagina' : 'pagine'})
+            </Button>
           </div>
         )}
       </CardContent>
