@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SearchForm } from "@/components/SearchForm";
+import { AdvancedQueryBuilder } from "@/components/AdvancedQueryBuilder";
 import { ContactsTable } from "@/components/ContactsTable";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +23,10 @@ const Index = () => {
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const handleQueryGenerated = (generatedQuery: string) => {
+    console.log("Query generata:", generatedQuery);
+  };
 
   const handleSearch = async (query: string, location?: string, pages: number = 1) => {
     setIsLoading(true);
@@ -77,7 +81,7 @@ const Index = () => {
         </header>
 
         <div className="max-w-4xl mx-auto space-y-8">
-          <SearchForm onSearch={handleSearch} isLoading={isLoading} />
+          <AdvancedQueryBuilder onQueryGenerated={handleQueryGenerated} />
           {progress && (
             <div className="text-center text-sm text-muted-foreground">
               Cercando pagina {progress.current} di {progress.total}...
