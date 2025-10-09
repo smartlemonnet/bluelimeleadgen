@@ -80,29 +80,29 @@ export default function BatchManager() {
   };
 
   const createBatch = async () => {
-    if (!batchName.trim() || !csvContent.trim()) {
+    if (!batchName.trim()) {
       toast({
         title: "Errore",
-        description: "Inserisci nome batch e carica un CSV",
+        description: "Inserisci il nome del batch",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      // Parsing CSV: formato "query,location,pages" oppure "query,location"
-      const lines = csvContent.split('\n').filter(l => l.trim());
-      const jobs = lines.slice(1).map(line => {
-        const parts = line.split(',').map(p => p.trim());
-        return {
-          query: parts[0],
-          location: parts[1] || null,
-          pages: parseInt(parts[2]) || 10,
-        };
-      }).filter(j => j.query);
-
-      if (jobs.length === 0) {
-        throw new Error("Nessun job valido trovato nel CSV");
+      let jobs: any[] = [];
+      
+      // Parsing CSV solo se presente
+      if (csvContent.trim()) {
+        const lines = csvContent.split('\n').filter(l => l.trim());
+        jobs = lines.slice(1).map(line => {
+          const parts = line.split(',').map(p => p.trim());
+          return {
+            query: parts[0],
+            location: parts[1] || null,
+            pages: parseInt(parts[2]) || 10,
+          };
+        }).filter(j => j.query);
       }
 
       // Get current user
@@ -124,22 +124,26 @@ export default function BatchManager() {
 
       if (batchError) throw batchError;
 
-      // Crea i job
-      const jobsToInsert = jobs.map(job => ({
-        batch_id: batch.id,
-        user_id: user.id,
-        ...job,
-      }));
+      // Crea i job solo se ce ne sono
+      if (jobs.length > 0) {
+        const jobsToInsert = jobs.map(job => ({
+          batch_id: batch.id,
+          user_id: user.id,
+          ...job,
+        }));
 
-      const { error: jobsError } = await supabase
-        .from('search_jobs')
-        .insert(jobsToInsert);
+        const { error: jobsError } = await supabase
+          .from('search_jobs')
+          .insert(jobsToInsert);
 
-      if (jobsError) throw jobsError;
+        if (jobsError) throw jobsError;
+      }
 
       toast({
         title: "Successo",
-        description: `Batch "${batchName}" creato con ${jobs.length} ricerche`,
+        description: jobs.length > 0 
+          ? `Batch "${batchName}" creato con ${jobs.length} ricerche`
+          : `Batch "${batchName}" creato (vuoto)`,
       });
 
       // Reset form
@@ -298,7 +302,7 @@ digital marketing,Hamburg,10`;
                 <span className="text-primary">→</span> Crea Nuovo Batch
               </CardTitle>
               <CardDescription>
-                <strong>Passaggi richiesti:</strong> 1️⃣ Nome batch, 2️⃣ Carica CSV
+                Inserisci un nome per il batch. Puoi caricare un CSV con le ricerche o aggiungerle dopo.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -346,7 +350,7 @@ digital marketing,Hamburg,10`;
               <div className="space-y-4 p-4 rounded-lg bg-secondary/5 border border-secondary/20">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-secondary flex items-center gap-2">
-                    2️⃣ Carica File CSV <span className="text-destructive">*</span>
+                    2️⃣ Carica File CSV <span className="text-muted-foreground text-sm">(opzionale)</span>
                   </h3>
                   <Button variant="outline" size="sm" onClick={downloadTemplate}>
                     <Download className="mr-2 h-4 w-4" />
@@ -388,11 +392,11 @@ digital marketing,Hamburg,10`;
                 <Button 
                   onClick={createBatch} 
                   className="flex-1 bg-primary hover:bg-primary/90"
-                  disabled={!batchName.trim() || !csvContent.trim()}
+                  disabled={!batchName.trim()}
                 >
-                  {!batchName.trim() || !csvContent.trim() ? 
-                    '⚠️ Completa tutti i campi obbligatori' : 
-                    '✓ Crea Batch'
+                  {!batchName.trim() ? 
+                    '⚠️ Inserisci il nome del batch' : 
+                    csvContent.trim() ? '✓ Crea Batch con CSV' : '✓ Crea Batch Vuoto'
                   }
                 </Button>
                 <Button variant="outline" onClick={() => {
