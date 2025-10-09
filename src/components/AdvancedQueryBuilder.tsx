@@ -58,26 +58,34 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
   };
 
   const generateQuery = () => {
-    let query = keyword;
+    let queryParts: string[] = [];
 
-    if (location) {
-      query += ` ${location}`;
+    // Add keyword first
+    if (keyword) {
+      queryParts.push(keyword);
     }
 
+    // Add location in quotes for better filtering
+    if (location) {
+      queryParts.push(`"${location}"`);
+    }
+
+    // Add email providers in proper OR format
     if (emailProviders.length > 0) {
       const providers = emailProviders.map(p => `"${p}"`).join(" OR ");
-      query += ` (${providers})`;
+      queryParts.push(`(${providers})`);
     }
 
+    // Add websites with site: operator (no OR, just all sites)
     if (websites.length > 0) {
-      const sites = websites.map(w => `site:${w}`).join(" OR ");
-      query += ` (${sites})`;
+      websites.forEach(w => {
+        queryParts.push(`site:${w}`);
+      });
     }
 
-    if (searchEngines.length > 0) {
-      query += ` engines: ${searchEngines.join(", ")}`;
-    }
-
+    // Build final query (engines are not part of Google syntax, we ignore them)
+    const query = queryParts.join(" ");
+    
     setGeneratedQuery(query);
     onQueryGenerated(query);
   };
