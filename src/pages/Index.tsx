@@ -3,6 +3,9 @@ import { SearchForm } from "@/components/SearchForm";
 import { ContactsTable } from "@/components/ContactsTable";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { Database } from "lucide-react";
 
 interface Contact {
   id: string;
@@ -19,6 +22,7 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSearch = async (query: string, location?: string, pages: number = 1) => {
     setIsLoading(true);
@@ -62,6 +66,12 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         <header className="mb-8 text-center">
+          <div className="flex justify-end mb-4">
+            <Button onClick={() => navigate('/dashboard')} variant="outline">
+              <Database className="mr-2 h-4 w-4" />
+              Visualizza Dashboard
+            </Button>
+          </div>
           <h1 className="text-4xl font-bold text-foreground mb-2">Email Scraper</h1>
           <p className="text-muted-foreground">Trova email e contatti dai motori di ricerca</p>
         </header>
