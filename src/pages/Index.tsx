@@ -17,15 +17,17 @@ interface Contact {
 const Index = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const { toast } = useToast();
 
-  const handleSearch = async (query: string, location?: string) => {
+  const handleSearch = async (query: string, location?: string, pages: number = 1) => {
     setIsLoading(true);
     setContacts([]);
+    setProgress({ current: 0, total: pages });
 
     try {
       const { data, error } = await supabase.functions.invoke('search-contacts', {
-        body: { query, location }
+        body: { query, location, pages }
       });
 
       if (error) throw error;
@@ -34,7 +36,7 @@ const Index = () => {
         setContacts(data.contacts);
         toast({
           title: "Ricerca completata",
-          description: `Trovati ${data.contacts.length} contatti`,
+          description: `Trovati ${data.contacts.length} contatti unici da ${pages} pagine`,
         });
       } else {
         toast({
@@ -52,6 +54,7 @@ const Index = () => {
       });
     } finally {
       setIsLoading(false);
+      setProgress(null);
     }
   };
 
@@ -65,6 +68,11 @@ const Index = () => {
 
         <div className="max-w-4xl mx-auto space-y-8">
           <SearchForm onSearch={handleSearch} isLoading={isLoading} />
+          {progress && (
+            <div className="text-center text-sm text-muted-foreground">
+              Cercando pagina {progress.current} di {progress.total}...
+            </div>
+          )}
           <ContactsTable contacts={contacts} isLoading={isLoading} />
         </div>
       </div>

@@ -5,18 +5,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Search } from "lucide-react";
 
 interface SearchFormProps {
-  onSearch: (query: string, location?: string) => void;
+  onSearch: (query: string, location?: string, pages?: number) => void;
   isLoading: boolean;
 }
 
 export const SearchForm = ({ onSearch, isLoading }: SearchFormProps) => {
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("");
+  const [pages, setPages] = useState(1);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      onSearch(query, location || undefined);
+      onSearch(query, location || undefined, pages);
     }
   };
 
@@ -53,6 +54,24 @@ export const SearchForm = ({ onSearch, isLoading }: SearchFormProps) => {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="pages" className="text-sm font-medium">
+              Numero di pagine da cercare
+            </label>
+            <Input
+              id="pages"
+              type="number"
+              min="1"
+              max="20"
+              placeholder="1-20 pagine"
+              value={pages}
+              onChange={(e) => setPages(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+            />
+            <p className="text-xs text-muted-foreground">
+              ~10-20 email per pagina. Max 20 pagine consigliato.
+            </p>
           </div>
 
           <Button type="submit" disabled={isLoading} className="w-full">

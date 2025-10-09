@@ -12,13 +12,14 @@ serve(async (req) => {
   }
 
   try {
-    const { query, location } = await req.json();
+    const { query, location, pages = 1 } = await req.json();
     
     if (!query) {
       throw new Error('Query is required');
     }
 
-    console.log('Searching for:', query, location);
+    const numPages = Math.min(Math.max(1, pages), 20); // Limit to 1-20 pages
+    console.log('Searching for:', query, location, `- ${numPages} pages`);
 
     // Build the search query
     let searchQuery = query;
@@ -32,32 +33,68 @@ serve(async (req) => {
       throw new Error('SERPER_API_KEY not configured');
     }
 
-    const serperResponse = await fetch('https://google.serper.dev/search', {
-      method: 'POST',
-      headers: {
-        'X-API-KEY': serperApiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        q: searchQuery,
-        num: 10, // Number of results
-      }),
-    });
+    // Save search to database first
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
-    if (!serperResponse.ok) {
-      throw new Error(`Serper API error: ${serperResponse.statusText}`);
+    const { data: searchData, error: searchError } = await supabase
+      .from('searches')
+      .insert({ query, location })
+      .select()
+      .single();
+
+    if (searchError) {
+      console.error('Error saving search:', searchError);
+      throw new Error('Failed to save search');
     }
 
-    const serperData = await serperResponse.json();
-    console.log('Serper results:', serperData);
+    const searchId = searchData.id;
+    const allContacts: any[] = [];
+    const seenEmails = new Set<string>();
 
-    // Extract contacts from results
-    const contacts = await extractContacts(serperData, query, location);
-    
-    console.log(`Extracted ${contacts.length} contacts`);
+    // Loop through pages
+    for (let page = 1; page <= numPages; page++) {
+      console.log(`Fetching page ${page}/${numPages}`);
+      
+      const serperResponse = await fetch('https://google.serper.dev/search', {
+        method: 'POST',
+        headers: {
+          'X-API-KEY': serperApiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          q: searchQuery,
+          num: 10,
+          page: page,
+        }),
+      });
+
+      if (!serperResponse.ok) {
+        console.error(`Serper API error on page ${page}: ${serperResponse.statusText}`);
+        continue; // Skip failed pages
+      }
+
+      const serperData = await serperResponse.json();
+      console.log(`Page ${page} results:`, serperData.organic?.length || 0, 'results');
+
+      // Extract contacts from this page
+      const pageContacts = await extractContactsFromResults(
+        serperData, 
+        searchId, 
+        seenEmails,
+        supabase
+      );
+      
+      allContacts.push(...pageContacts);
+      console.log(`Page ${page}: extracted ${pageContacts.length} new contacts (total: ${allContacts.length})`);
+    }
+
+    console.log(`Total extracted ${allContacts.length} unique contacts from ${numPages} pages`);
 
     return new Response(
-      JSON.stringify({ contacts }),
+      JSON.stringify({ contacts: allContacts }),
       { 
         headers: { 
           ...corsHeaders,
@@ -82,29 +119,13 @@ serve(async (req) => {
   }
 });
 
-async function extractContacts(serperData: any, query: string, location?: string) {
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
-
-  // Save search to database
-  const { data: searchData, error: searchError } = await supabase
-    .from('searches')
-    .insert({ query, location })
-    .select()
-    .single();
-
-  if (searchError) {
-    console.error('Error saving search:', searchError);
-    throw new Error('Failed to save search');
-  }
-
-  const searchId = searchData.id;
+async function extractContactsFromResults(
+  serperData: any, 
+  searchId: string, 
+  seenEmails: Set<string>,
+  supabase: any
+) {
   const contacts: any[] = [];
-  const seenEmails = new Set<string>();
-
-  // Extract contacts from organic results
   const results = serperData.organic || [];
   
   for (const result of results) {
