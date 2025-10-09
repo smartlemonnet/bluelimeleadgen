@@ -47,64 +47,104 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
+        {/* Header with Actions */}
+        <header className="flex justify-between items-center mb-12">
           <div>
-            <Button
-              variant="outline"
-              onClick={() => navigate('/')}
-              className="mb-4"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Torna alla ricerca
-            </Button>
-            <h1 className="text-4xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-muted-foreground">Panoramica dei tuoi dati</p>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              BlueLink LeadGen
+            </h1>
+            <p className="text-muted-foreground mt-1">Dashboard centrale</p>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={() => navigate('/batch')} size="lg">
-              <Zap className="mr-2 h-4 w-4" />
-              Code Automatiche
-            </Button>
-            <Button onClick={handleLogout} variant="outline" size="lg">
-              <LogOut className="mr-2 h-4 w-4" />
-              Esci
-            </Button>
+          <Button onClick={handleLogout} variant="outline" size="sm">
+            <LogOut className="mr-2 h-4 w-4" />
+            Esci
+          </Button>
+        </header>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/contacts')}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5" />
-                Contatti
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-primary mb-2">
-                {isLoading ? "..." : contactsCount}
+        ) : (
+          <>
+            {/* Quick Actions - Most Important */}
+            <div className="mb-12">
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <span className="text-secondary">→</span> Azioni Rapide
+              </h2>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Button 
+                  onClick={() => navigate('/')}
+                  size="lg"
+                  className="h-24 bg-primary hover:bg-primary/90 text-lg font-semibold"
+                >
+                  <Search className="mr-3 h-6 w-6" />
+                  Nuova Ricerca
+                </Button>
+                <Button 
+                  onClick={() => navigate('/batch')}
+                  size="lg"
+                  className="h-24 bg-secondary hover:bg-secondary/90 text-lg font-semibold"
+                >
+                  <Zap className="mr-3 h-6 w-6" />
+                  Batch Manager
+                </Button>
               </div>
-              <p className="text-muted-foreground">Contatti totali salvati</p>
-            </CardContent>
-          </Card>
+            </div>
 
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/searches')}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5" />
-                Ricerche
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-primary mb-2">
-                {isLoading ? "..." : searchesCount}
+            {/* Stats Cards */}
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <span className="text-accent">📊</span> Statistiche
+              </h2>
+              <div className="grid gap-6 md:grid-cols-2">
+                <div 
+                  onClick={() => navigate('/contacts')}
+                  className="cursor-pointer transition-all hover:scale-105 hover:shadow-lg hover:shadow-primary/20"
+                >
+                  <Card className="border-2 border-border hover:border-primary">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-primary">
+                        <Mail className="h-5 w-5" />
+                        Contatti Salvati
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-5xl font-bold text-primary">{contactsCount}</div>
+                      <p className="text-sm text-muted-foreground mt-2">Clicca per visualizzare tutti</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div 
+                  onClick={() => navigate('/searches')}
+                  className="cursor-pointer transition-all hover:scale-105 hover:shadow-lg hover:shadow-secondary/20"
+                >
+                  <Card className="border-2 border-border hover:border-secondary">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-secondary">
+                        <Search className="h-5 w-5" />
+                        Ricerche Effettuate
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-5xl font-bold text-secondary">{searchesCount}</div>
+                      <p className="text-sm text-muted-foreground mt-2">Clicca per lo storico</p>
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
-              <p className="text-muted-foreground">Ricerche effettuate</p>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
 
-        <GlobalMap />
+            {/* Map Visualization */}
+            <div>
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <span className="text-accent">🗺️</span> Mappa Contatti
+              </h2>
+              <GlobalMap />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

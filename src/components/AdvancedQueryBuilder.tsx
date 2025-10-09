@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Search } from "lucide-react";
 
 interface AdvancedQueryBuilderProps {
   onQueryGenerated: (query: string) => void;
@@ -81,14 +81,17 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated }: AdvancedQueryBuilderP
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Query Builder Avanzato</CardTitle>
-        <CardDescription>
-          Costruisci query complesse combinando diversi parametri
+    <Card className="border-2 border-primary/20">
+      <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10">
+        <CardTitle className="text-2xl flex items-center gap-2">
+          <Search className="h-6 w-6 text-primary" />
+          Crea Nuova Ricerca
+        </CardTitle>
+        <CardDescription className="text-base">
+          Compila i campi per avviare una ricerca di contatti
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 pt-6">
         <div className="space-y-2">
           <Label htmlFor="keyword">1. Parola chiave o frase</Label>
           <Input
@@ -187,19 +190,27 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated }: AdvancedQueryBuilderP
           </div>
         </div>
 
-        <Button onClick={generateQuery} className="w-full" size="lg">
+        <Button 
+          onClick={generateQuery} 
+          className="w-full bg-primary hover:bg-primary/90" 
+          size="lg"
+        >
+          <Search className="mr-2 h-5 w-5" />
           Genera Query
         </Button>
 
         {generatedQuery && (
-          <div className="space-y-2">
-            <Label>Query generata</Label>
+          <div className="space-y-2 p-4 bg-secondary/10 border border-secondary rounded-lg">
+            <Label className="text-secondary font-semibold">✓ Query generata con successo</Label>
             <Textarea
               value={generatedQuery}
               readOnly
-              className="font-mono text-sm"
+              className="font-mono text-sm bg-background"
               rows={4}
             />
+            <p className="text-xs text-muted-foreground">
+              Questa query verrà utilizzata per la ricerca. Modifica i parametri sopra per rigenerarla.
+            </p>
           </div>
         )}
       </CardContent>

@@ -69,27 +69,48 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
-        <header className="mb-8 text-center">
-          <div className="flex justify-end gap-2 mb-4">
-            <Button onClick={() => navigate('/auth')} variant="outline">
-              Accedi
-            </Button>
-            <Button onClick={() => navigate('/dashboard')} variant="outline">
-              <Database className="mr-2 h-4 w-4" />
-              Dashboard
-            </Button>
+        <header className="mb-12">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-5xl font-bold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent mb-2">
+                BlueLink LeadGen
+              </h1>
+              <p className="text-muted-foreground text-lg">Motore di ricerca contatti professionale</p>
+            </div>
+            <div className="flex gap-3">
+              <Button onClick={() => navigate('/auth')} variant="outline">
+                Accedi
+              </Button>
+              <Button onClick={() => navigate('/dashboard')} className="bg-primary hover:bg-primary-hover">
+                <Database className="mr-2 h-4 w-4" />
+                Dashboard
+              </Button>
+            </div>
           </div>
-          <h1 className="text-4xl font-bold text-foreground mb-2">Email Scraper</h1>
-          <p className="text-muted-foreground">Trova email e contatti dai motori di ricerca</p>
+          
+          {/* Quick Guide */}
+          <div className="bg-card border border-border rounded-lg p-4 mt-6">
+            <h3 className="font-semibold text-primary mb-2">💡 Come usare:</h3>
+            <ol className="text-sm text-muted-foreground space-y-1">
+              <li>1. Compila i campi di ricerca qui sotto</li>
+              <li>2. Clicca "Cerca" per avviare la ricerca</li>
+              <li>3. I risultati appariranno nella tabella sotto</li>
+              <li>4. Vai alla Dashboard per vedere tutte le ricerche salvate</li>
+            </ol>
+          </div>
         </header>
 
-        <div className="max-w-4xl mx-auto space-y-8">
+        <div className="max-w-5xl mx-auto space-y-8">
           <AdvancedQueryBuilder onQueryGenerated={handleQueryGenerated} />
+          
           {progress && (
-            <div className="text-center text-sm text-muted-foreground">
-              Cercando pagina {progress.current} di {progress.total}...
+            <div className="text-center py-4 bg-primary/10 border border-primary rounded-lg">
+              <div className="text-primary font-medium">
+                🔍 Cercando pagina {progress.current} di {progress.total}...
+              </div>
             </div>
           )}
+          
           <ContactsTable contacts={contacts} isLoading={isLoading} />
         </div>
       </div>
