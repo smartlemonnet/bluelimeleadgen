@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Search, Mail, ArrowLeft } from "lucide-react";
+import { Download, Search, Mail, ArrowLeft, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from 'xlsx';
@@ -125,6 +125,10 @@ const Dashboard = () => {
             <h1 className="text-4xl font-bold text-foreground">Dashboard</h1>
             <p className="text-muted-foreground">Visualizza ed esporta i tuoi dati</p>
           </div>
+          <Button onClick={() => navigate('/batch')} size="lg">
+            <Zap className="mr-2 h-4 w-4" />
+            Code Automatiche
+          </Button>
         </div>
 
         <Tabs defaultValue="contacts" className="w-full">
