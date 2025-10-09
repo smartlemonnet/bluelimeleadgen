@@ -83,7 +83,21 @@ const Dashboard = () => {
       Website: c.website || '',
       'Data creazione': new Date(c.created_at).toLocaleString('it-IT'),
     }));
-    exportToExcel(dataToExport, 'contatti');
+    exportToExcel(dataToExport, 'tutti_i_contatti');
+  };
+
+  const exportSearchContacts = (searchId: string, searchQuery: string) => {
+    const searchContacts = contacts.filter(c => c.search_id === searchId);
+    const dataToExport = searchContacts.map(c => ({
+      Email: c.email || '',
+      Nome: c.name || '',
+      Organizzazione: c.organization || '',
+      Telefono: c.phone || '',
+      Website: c.website || '',
+      'Data creazione': new Date(c.created_at).toLocaleString('it-IT'),
+    }));
+    const filename = `contatti_${searchQuery.replace(/\s+/g, '_').toLowerCase()}`;
+    exportToExcel(dataToExport, filename);
   };
 
   const exportSearches = () => {
@@ -224,19 +238,40 @@ const Dashboard = () => {
                         <TableRow>
                           <TableHead>Query</TableHead>
                           <TableHead>Località</TableHead>
+                          <TableHead>Contatti trovati</TableHead>
                           <TableHead>Data ricerca</TableHead>
+                          <TableHead>Azioni</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {searches.map((search) => (
-                          <TableRow key={search.id}>
-                            <TableCell className="font-medium">{search.query}</TableCell>
-                            <TableCell>{search.location || <span className="text-muted-foreground">Nessuna</span>}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {new Date(search.created_at).toLocaleString('it-IT')}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {searches.map((search) => {
+                          const searchContactsCount = contacts.filter(c => c.search_id === search.id).length;
+                          return (
+                            <TableRow key={search.id}>
+                              <TableCell className="font-medium">{search.query}</TableCell>
+                              <TableCell>{search.location || <span className="text-muted-foreground">Nessuna</span>}</TableCell>
+                              <TableCell>
+                                <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                                  {searchContactsCount} contatti
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {new Date(search.created_at).toLocaleString('it-IT')}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => exportSearchContacts(search.id, search.query)}
+                                  disabled={searchContactsCount === 0}
+                                >
+                                  <Download className="mr-2 h-4 w-4" />
+                                  Esporta
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
