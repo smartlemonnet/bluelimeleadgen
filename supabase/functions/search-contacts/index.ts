@@ -12,6 +12,11 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('No authorization header');
+    }
+
     const { query, location, pages = 1 } = await req.json();
     
     if (!query) {
@@ -36,12 +41,19 @@ serve(async (req) => {
     // Save search to database first
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
     );
+
+    // Get user from auth
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      throw new Error('User not authenticated');
+    }
 
     const { data: searchData, error: searchError } = await supabase
       .from('searches')
-      .insert({ query, location })
+      .insert({ query, location, user_id: user.id })
       .select()
       .single();
 

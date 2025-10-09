@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Mail, ArrowLeft, Zap, Database } from "lucide-react";
+import { Search, Mail, ArrowLeft, Zap, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 import GlobalMap from "@/components/GlobalMap";
 
 const Dashboard = () => {
@@ -11,6 +12,16 @@ const Dashboard = () => {
   const [searchesCount, setSearchesCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast({
+      title: "Disconnesso",
+      description: "Sei stato disconnesso con successo",
+    });
+    navigate('/auth');
+  };
 
   useEffect(() => {
     loadData();
@@ -49,10 +60,16 @@ const Dashboard = () => {
             <h1 className="text-4xl font-bold text-foreground">Dashboard</h1>
             <p className="text-muted-foreground">Panoramica dei tuoi dati</p>
           </div>
-          <Button onClick={() => navigate('/batch')} size="lg">
-            <Zap className="mr-2 h-4 w-4" />
-            Code Automatiche
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => navigate('/batch')} size="lg">
+              <Zap className="mr-2 h-4 w-4" />
+              Code Automatiche
+            </Button>
+            <Button onClick={handleLogout} variant="outline" size="lg">
+              <LogOut className="mr-2 h-4 w-4" />
+              Esci
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">

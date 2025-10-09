@@ -131,13 +131,15 @@ Deno.serve(async (req) => {
       } catch (error) {
         console.error(`Job ${job.id} failed:`, error);
         
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        
         // Marca il job come failed
         await supabase
           .from('search_jobs')
           .update({
             status: 'failed',
             executed_at: new Date().toISOString(),
-            error_message: error.message,
+            error_message: errorMessage,
           })
           .eq('id', job.id);
 
@@ -158,8 +160,9 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Error processing queue:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

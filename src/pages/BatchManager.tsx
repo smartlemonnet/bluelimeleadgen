@@ -105,6 +105,10 @@ export default function BatchManager() {
         throw new Error("Nessun job valido trovato nel CSV");
       }
 
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
       // Crea il batch
       const { data: batch, error: batchError } = await supabase
         .from('search_batches')
@@ -113,6 +117,7 @@ export default function BatchManager() {
           description: batchDescription,
           total_jobs: jobs.length,
           delay_seconds: delaySeconds,
+          user_id: user.id,
         })
         .select()
         .single();
@@ -122,6 +127,7 @@ export default function BatchManager() {
       // Crea i job
       const jobsToInsert = jobs.map(job => ({
         batch_id: batch.id,
+        user_id: user.id,
         ...job,
       }));
 

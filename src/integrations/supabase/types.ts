@@ -105,6 +105,7 @@ export type Database = {
           status: string
           total_jobs: number
           updated_at: string
+          user_id: string
         }
         Insert: {
           completed_at?: string | null
@@ -119,6 +120,7 @@ export type Database = {
           status?: string
           total_jobs?: number
           updated_at?: string
+          user_id: string
         }
         Update: {
           completed_at?: string | null
@@ -133,6 +135,7 @@ export type Database = {
           status?: string
           total_jobs?: number
           updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -149,6 +152,7 @@ export type Database = {
           result_count: number | null
           search_id: string | null
           status: string
+          user_id: string
         }
         Insert: {
           batch_id: string
@@ -162,6 +166,7 @@ export type Database = {
           result_count?: number | null
           search_id?: string | null
           status?: string
+          user_id: string
         }
         Update: {
           batch_id?: string
@@ -175,6 +180,7 @@ export type Database = {
           result_count?: number | null
           search_id?: string | null
           status?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -199,21 +205,21 @@ export type Database = {
           id: string
           location: string | null
           query: string
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           location?: string | null
           query: string
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           created_at?: string
           id?: string
           location?: string | null
           query?: string
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }
