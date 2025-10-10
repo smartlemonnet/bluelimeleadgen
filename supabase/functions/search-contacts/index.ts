@@ -89,10 +89,11 @@ serve(async (req) => {
         page: page,
       };
 
-      // Add location if provided (city or region)
+      // Add location if provided - use both 'gl' and append to query for better results
       if (location) {
-        serperBody.location = location;
-        console.log(`Using location filter: ${location}`);
+        // Append location to search query for better geographic targeting
+        serperBody.q = `${searchQuery} ${location}`;
+        console.log(`Using location filter in query: ${location}`);
       }
 
       const serperResponse = await fetch('https://google.serper.dev/search', {
