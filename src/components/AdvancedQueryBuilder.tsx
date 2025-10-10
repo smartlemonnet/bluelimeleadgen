@@ -219,6 +219,18 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
             <Button type="button" onClick={addWebsite} size="icon">
               <Plus className="h-4 w-4" />
             </Button>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {websites.map(website => (
+              <Badge key={website} variant="secondary" className="gap-1">
+                {website}
+                <X
+                  className="h-3 w-3 cursor-pointer"
+                  onClick={() => removeWebsite(website)}
+                />
+              </Badge>
+            ))}
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -249,20 +261,8 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
             ))}
           </div>
         </div>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {websites.map(website => (
-              <Badge key={website} variant="secondary" className="gap-1">
-                {website}
-                <X
-                  className="h-3 w-3 cursor-pointer"
-                  onClick={() => removeWebsite(website)}
-                />
-              </Badge>
-            ))}
-          </div>
-        </div>
 
-        <Button 
+        <Button
           onClick={generateQuery} 
           className="w-full bg-primary hover:bg-primary/90" 
           size="lg"
