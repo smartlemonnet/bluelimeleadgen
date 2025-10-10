@@ -89,11 +89,11 @@ serve(async (req) => {
         page: page,
       };
 
-      // Add location if provided - use both 'gl' and append to query for better results
+      // Add location if provided - use 'gl' parameter for geolocation
       if (location) {
-        // Append location to search query for better geographic targeting
-        serperBody.q = `${searchQuery} ${location}`;
-        console.log(`Using location filter in query: ${location}`);
+        serperBody.gl = 'it'; // Italy
+        serperBody.hl = 'it'; // Italian language
+        console.log(`Using location filter: gl=it, hl=it for ${location}`);
       }
 
       const serperResponse = await fetch('https://google.serper.dev/search', {
@@ -222,9 +222,16 @@ async function extractContactsFromResults(
       console.log(`Could not fetch ${link}: ${errorMsg}`);
     }
 
-    // Extract emails with improved regex
+    // Extract emails with improved regex - exclude common file extensions
     const emailRegex = /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g;
-    const emails = text.match(emailRegex) || [];
+    const rawEmails = text.match(emailRegex) || [];
+    
+    // Filter out emails that are actually file paths
+    const invalidExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.woff', '.ttf', '.eot', '.ico'];
+    const emails = rawEmails.filter(email => {
+      const lowerEmail = email.toLowerCase();
+      return !invalidExtensions.some(ext => lowerEmail.endsWith(ext));
+    });
     
     if (htmlFetched && emails.length > 0) {
       emailsFoundInHTML += emails.length;
