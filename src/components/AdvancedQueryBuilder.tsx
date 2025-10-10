@@ -73,28 +73,37 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
   const generateQuery = () => {
     let queryParts: string[] = [];
 
-    // Add keyword first
+    // 1. Keyword
     if (keyword) {
-      queryParts.push(keyword);
+      queryParts.push(`Parola chiave: ${keyword}`);
     }
 
-    // Add location in quotes for better filtering
+    // 2. Location
     if (location) {
-      queryParts.push(`"${location}"`);
+      queryParts.push(`Luogo: "${location}"`);
     }
 
-    // Build base query (filters are applied server-side)
-    const query = queryParts.join(" ");
-    
-    // Show what filters are active
-    let filterInfo = [];
-    if (emailProviders.length > 0) filterInfo.push(`Email: ${emailProviders.join(', ')}`);
-    if (websites.length > 0) filterInfo.push(`Siti: ${websites.join(', ')}`);
-    if (targetNames.length > 0) filterInfo.push(`Nomi: ${targetNames.join(', ')}`);
-    
-    const displayQuery = filterInfo.length > 0 
-      ? `${query}\n\nFiltri attivi:\n- ${filterInfo.join('\n- ')}`
-      : query;
+    // 3. Email providers
+    if (emailProviders.length > 0) {
+      queryParts.push(`Provider email: ${emailProviders.join(', ')}`);
+    }
+
+    // 4. Search engines
+    if (searchEngines.length > 0) {
+      queryParts.push(`Motori: ${searchEngines.join(', ')}`);
+    }
+
+    // 5. Websites
+    if (websites.length > 0) {
+      queryParts.push(`Siti web: ${websites.join(', ')}`);
+    }
+
+    // 6. Target names
+    if (targetNames.length > 0) {
+      queryParts.push(`Nomi: ${targetNames.join(', ')}`);
+    }
+
+    const displayQuery = queryParts.join('\n');
     
     setGeneratedQuery(displayQuery);
     onQueryGenerated(displayQuery);
