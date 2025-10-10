@@ -165,13 +165,18 @@ async function extractContactsFromResults(
     const title = result.title || '';
     const link = result.link || '';
     let text = `${title} ${snippet}`;
+    let htmlFetched = false;
 
     // Apply website filter if specified
     if (websites.length > 0) {
-      const linkDomain = new URL(link).hostname.replace('www.', '');
-      const matchesDomain = websites.some(w => linkDomain.includes(w.replace('www.', '')));
-      if (!matchesDomain) {
-        continue;
+      try {
+        const linkDomain = new URL(link).hostname.replace('www.', '');
+        const matchesDomain = websites.some(w => linkDomain.includes(w.replace('www.', '')));
+        if (!matchesDomain) {
+          continue;
+        }
+      } catch (e) {
+        continue; // Skip invalid URLs
       }
     }
 
@@ -193,20 +198,22 @@ async function extractContactsFromResults(
         const contentType = htmlResponse.headers.get('content-type') || '';
         if (contentType.includes('text/html')) {
           const html = await htmlResponse.text();
-          text += ' ' + html.substring(0, 50000); // Limit to 50KB
+          const limitedHtml = html.substring(0, 50000); // Limit to 50KB
+          text += ' ' + limitedHtml;
+          htmlFetched = true;
           fetchedPages++;
         }
       }
-    } catch (error) {
-      // Ignore fetch errors, continue with snippet only
-      console.log(`Could not fetch ${link}:`, error.message);
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : 'Unknown error';
+      console.log(`Could not fetch ${link}: ${errorMsg}`);
     }
 
     // Extract emails with improved regex
     const emailRegex = /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g;
     const emails = text.match(emailRegex) || [];
     
-    if (emails.length > 0 && text.length > snippet.length + title.length) {
+    if (htmlFetched && emails.length > 0) {
       emailsFoundInHTML += emails.length;
     }
 
