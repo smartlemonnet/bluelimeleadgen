@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Upload, Play, Pause, Trash2, Download, Plus } from "lucide-react";
+import { ArrowLeft, Upload, Play, Pause, Trash2, Download, Plus, FileDown } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 
@@ -92,13 +92,20 @@ export default function BatchManager() {
     try {
       let jobs: any[] = [];
       
-      // Parsing CSV solo se presente
+      // Parsing CSV solo se presente - supporta virgolette per campi con virgole
       if (csvContent.trim()) {
         const lines = csvContent.split('\n').filter(l => l.trim());
         jobs = lines.slice(1).map(line => {
-          const parts = line.split(',').map(p => p.trim());
+          // Parse CSV correttamente gestendo virgolette
+          const regex = /("([^"]*)"|[^,]+)/g;
+          const parts: string[] = [];
+          let match;
+          while ((match = regex.exec(line)) !== null) {
+            parts.push(match[2] !== undefined ? match[2] : match[1].trim());
+          }
+          
           return {
-            query: parts[0],
+            query: parts[0] || '',
             location: parts[1] || null,
             pages: parseInt(parts[2]) || 10,
           };
@@ -238,9 +245,9 @@ export default function BatchManager() {
 
   const downloadTemplate = () => {
     const template = `query,location,pages
-marketing agentur,Berlin,10
-werbeagentur,München,10
-digital marketing,Hamburg,10`;
+"marketing agentur (site:linkedin.com) (""@gmail.com"")",Berlin,10
+"werbeagentur (site:facebook.com) (""@gmail.com"")",München,10
+"digital marketing",Hamburg,10`;
     
     const blob = new Blob([template], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -249,6 +256,56 @@ digital marketing,Hamburg,10`;
     a.download = 'batch_template.csv';
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const exportBatchJobs = async (batchId: string, batchName: string) => {
+    try {
+      const { data: jobs, error } = await supabase
+        .from('search_jobs')
+        .select('query, location, pages')
+        .eq('batch_id', batchId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      if (!jobs || jobs.length === 0) {
+        toast({
+          title: "Nessun job",
+          description: "Questo batch non contiene ricerche da esportare",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Crea CSV con virgolette per proteggere le virgole
+      const csvHeader = 'query,location,pages\n';
+      const csvRows = jobs.map(job => {
+        const query = `"${(job.query || '').replace(/"/g, '""')}"`;
+        const location = job.location || '';
+        const pages = job.pages || 10;
+        return `${query},${location},${pages}`;
+      }).join('\n');
+
+      const csvContent = csvHeader + csvRows;
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${batchName.replace(/[^a-z0-9]/gi, '_')}_batch.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "✓ Export completato",
+        description: `${jobs.length} ricerche esportate`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -462,6 +519,15 @@ digital marketing,Hamburg,10`;
                             Pausa
                           </Button>
                         )}
+
+                        <Button 
+                          onClick={() => exportBatchJobs(batch.id, batch.name)}
+                          size="sm" 
+                          variant="outline"
+                        >
+                          <FileDown className="mr-2 h-4 w-4" />
+                          Esporta CSV
+                        </Button>
 
                         <Button 
                           onClick={() => deleteBatch(batch.id)} 
