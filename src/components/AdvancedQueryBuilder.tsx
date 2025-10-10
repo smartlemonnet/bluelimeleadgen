@@ -83,25 +83,21 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
       queryParts.push(`"${location}"`);
     }
 
-    // Add websites with site: operator if specified
-    if (websites.length > 0) {
-      const sitePart = websites.map(w => `site:${w}`).join(" OR ");
-      queryParts.push(`(${sitePart})`);
-    }
-
-    // Build final query - email providers will be filtered server-side
+    // Build base query (filters are applied server-side)
     const query = queryParts.join(" ");
     
-    // Create search parameters object to pass to backend
-    const searchParams = {
-      query,
-      emailProviders,
-      searchEngines: searchEngines.length > 0 ? searchEngines : ['google.com'],
-      websites
-    };
+    // Show what filters are active
+    let filterInfo = [];
+    if (emailProviders.length > 0) filterInfo.push(`Email: ${emailProviders.join(', ')}`);
+    if (websites.length > 0) filterInfo.push(`Siti: ${websites.join(', ')}`);
+    if (targetNames.length > 0) filterInfo.push(`Nomi: ${targetNames.join(', ')}`);
     
-    setGeneratedQuery(query);
-    onQueryGenerated(JSON.stringify(searchParams));
+    const displayQuery = filterInfo.length > 0 
+      ? `${query}\n\nFiltri attivi:\n- ${filterInfo.join('\n- ')}`
+      : query;
+    
+    setGeneratedQuery(displayQuery);
+    onQueryGenerated(displayQuery);
   };
 
   const executeSearch = () => {
