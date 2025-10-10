@@ -1,11 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { X, Plus, Search } from "lucide-react";
+import { X, Plus, Search, Save, FolderOpen } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface AdvancedQueryBuilderProps {
   onQueryGenerated: (query: string) => void;
@@ -25,6 +34,88 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
   const [currentName, setCurrentName] = useState("");
   const [generatedQuery, setGeneratedQuery] = useState("");
   const [pages, setPages] = useState(10);
+  const [templateName, setTemplateName] = useState("");
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadTemplates();
+  }, []);
+
+  const loadTemplates = async () => {
+    const { data, error } = await supabase
+      .from('query_templates')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (!error && data) {
+      setTemplates(data);
+    }
+  };
+
+  const saveTemplate = async () => {
+    if (!templateName.trim()) {
+      toast({
+        title: "Nome richiesto",
+        description: "Inserisci un nome per salvare il template",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const { error } = await supabase
+      .from('query_templates')
+      .insert({
+        name: templateName,
+        query_pattern: JSON.stringify({
+          keyword,
+          location,
+          emailProviders,
+          searchEngines,
+          websites,
+          targetNames,
+        }),
+        default_pages: pages,
+        user_id: user?.id,
+      });
+
+    if (error) {
+      toast({
+        title: "Errore",
+        description: "Impossibile salvare il template",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "✓ Template salvato",
+        description: `"${templateName}" salvato con successo`,
+      });
+      setTemplateName("");
+      loadTemplates();
+    }
+  };
+
+  const loadTemplate = (templateId: string) => {
+    const template = templates.find(t => t.id === templateId);
+    if (template) {
+      const pattern = JSON.parse(template.query_pattern);
+      setKeyword(pattern.keyword || "");
+      setLocation(pattern.location || "");
+      setEmailProviders(pattern.emailProviders || []);
+      setSearchEngines(pattern.searchEngines || []);
+      setWebsites(pattern.websites || []);
+      setTargetNames(pattern.targetNames || []);
+      setPages(template.default_pages || 10);
+      setGeneratedQuery("");
+      toast({
+        title: "✓ Template caricato",
+        description: `"${template.name}" caricato con successo`,
+      });
+    }
+  };
 
   const addEmailProvider = () => {
     if (currentProvider && !emailProviders.includes(currentProvider)) {
@@ -188,6 +279,49 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
+        {/* Template Section */}
+        <div className="space-y-4 p-4 bg-primary/5 border-2 border-primary/20 rounded-lg">
+          <div className="flex items-center gap-2">
+            <FolderOpen className="h-5 w-5 text-primary" />
+            <Label className="text-lg font-semibold">Template Salvati</Label>
+          </div>
+          
+          {templates.length > 0 && (
+            <div className="space-y-2">
+              <Label>Carica un template</Label>
+              <Select value={selectedTemplate} onValueChange={(value) => {
+                setSelectedTemplate(value);
+                loadTemplate(value);
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona un template..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map(template => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name} ({template.default_pages} pagine)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label>Salva template corrente</Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Nome del template..."
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+              />
+              <Button onClick={saveTemplate} variant="outline" size="icon">
+                <Save className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="keyword">1. Parola chiave o frase</Label>
           <Input
@@ -344,13 +478,13 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
                 id="pages"
                 type="number"
                 min="1"
-                max="100"
+                max="50"
                 value={pages}
-                onChange={(e) => setPages(parseInt(e.target.value) || 10)}
+                onChange={(e) => setPages(Math.min(50, parseInt(e.target.value) || 10))}
                 className="w-32"
               />
               <p className="text-xs text-muted-foreground">
-                Ogni pagina contiene ~10 risultati. Più pagine = più contatti ma più tempo.
+                Ogni pagina = ~10 risultati. Max 50 pagine (500 risultati). Più pagine = più contatti ma più tempo.
               </p>
             </div>
 
