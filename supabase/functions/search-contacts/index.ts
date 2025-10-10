@@ -12,19 +12,55 @@ serve(async (req) => {
   }
 
   try {
-    const { query, location, pages = 1 } = await req.json();
+    let requestData = await req.json();
+    
+    // Handle both old format (string query) and new format (JSON params)
+    let query: string;
+    let location: string | undefined;
+    let pages = 1;
+    let emailProviders: string[] = [];
+    let websites: string[] = [];
+    let searchEngines: string[] = ['google.com'];
+    
+    if (typeof requestData === 'string') {
+      // Old format compatibility
+      query = requestData;
+    } else if (typeof requestData.query === 'string' && requestData.query.startsWith('{')) {
+      // New format with JSON params
+      const params = JSON.parse(requestData.query);
+      query = params.query;
+      location = params.location;
+      pages = params.pages || requestData.pages || 1;
+      emailProviders = params.emailProviders || [];
+      websites = params.websites || [];
+      searchEngines = params.searchEngines || ['google.com'];
+    } else {
+      // Direct params
+      query = requestData.query;
+      location = requestData.location;
+      pages = requestData.pages || 1;
+      emailProviders = requestData.emailProviders || [];
+      websites = requestData.websites || [];
+      searchEngines = requestData.searchEngines || ['google.com'];
+    }
     
     if (!query) {
       throw new Error('Query is required');
     }
 
-    const numPages = Math.min(Math.max(1, pages), 20); // Limit to 1-20 pages
-    console.log('Searching for:', query, location, `- ${numPages} pages`);
+    const numPages = Math.min(Math.max(1, pages), 20);
+    console.log('Search params:', { query, location, numPages, emailProviders, websites, searchEngines });
 
     // Build the search query
     let searchQuery = query;
     if (location) {
-      searchQuery = `${query} ${location}`;
+      searchQuery = `${query} "${location}"`;
+    }
+    
+    // Add site filter if websites specified
+    if (websites.length > 0) {
+      const sitePart = websites.map(w => `site:${w}`).join(" OR ");
+      searchQuery = `${searchQuery} (${sitePart})`;
     }
 
     // Call Serper API
@@ -91,13 +127,15 @@ serve(async (req) => {
       const serperData = await serperResponse.json();
       console.log(`Page ${page} results:`, serperData.organic?.length || 0, 'results');
 
-      // Extract contacts from this page
+      // Extract contacts from this page with filters
       const pageContacts = await extractContactsFromResults(
         serperData, 
         searchId, 
         seenEmails,
         supabase,
-        userId
+        userId,
+        emailProviders,
+        websites
       );
       
       allContacts.push(...pageContacts);
@@ -137,7 +175,9 @@ async function extractContactsFromResults(
   searchId: string | null, 
   seenEmails: Set<string>,
   supabase: any,
-  userId: string | null
+  userId: string | null,
+  emailProviders: string[] = [],
+  websites: string[] = []
 ) {
   const contacts: any[] = [];
   const results = serperData.organic || [];
@@ -148,20 +188,41 @@ async function extractContactsFromResults(
     const link = result.link || '';
     const text = `${title} ${snippet}`;
 
-    // Extract emails
-    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    // Apply website filter if specified
+    if (websites.length > 0) {
+      const linkDomain = new URL(link).hostname.replace('www.', '');
+      const matchesDomain = websites.some(w => linkDomain.includes(w.replace('www.', '')));
+      if (!matchesDomain) {
+        continue; // Skip this result if it doesn't match any specified website
+      }
+    }
+
+    // Extract emails with improved regex
+    const emailRegex = /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g;
     const emails = text.match(emailRegex) || [];
 
-    // Extract phone numbers (US format)
-    const phoneRegex = /(\+?1[-.\s]?)?(\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}/g;
+    // Extract phone numbers (international format)
+    const phoneRegex = /(\+?\d{1,4}[-.\s]?)?(\(?\d{2,4}\)?[-.\s]?)?\d{3,4}[-.\s]?\d{3,4}/g;
     const phones = text.match(phoneRegex) || [];
 
     for (const email of emails) {
-      if (seenEmails.has(email)) continue;
-      seenEmails.add(email);
+      if (seenEmails.has(email.toLowerCase())) continue;
+      
+      // Apply email provider filter if specified
+      if (emailProviders.length > 0) {
+        const emailDomain = '@' + email.split('@')[1];
+        const matchesProvider = emailProviders.some(provider => 
+          emailDomain.toLowerCase().includes(provider.toLowerCase().replace('@', ''))
+        );
+        if (!matchesProvider) {
+          continue; // Skip this email if it doesn't match any specified provider
+        }
+      }
+      
+      seenEmails.add(email.toLowerCase());
 
       const contact = {
-        email: email,
+        email: email.toLowerCase(),
         name: extractName(title, snippet),
         organization: extractOrganization(title, snippet),
         phone: phones[0] || null,
@@ -179,6 +240,8 @@ async function extractContactsFromResults(
 
         if (!contactError && contactData) {
           contacts.push(contactData);
+        } else if (contactError) {
+          console.error('Error saving contact:', contactError);
         }
       } else {
         // Return contact without saving

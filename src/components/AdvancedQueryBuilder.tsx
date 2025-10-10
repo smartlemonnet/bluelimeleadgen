@@ -70,24 +70,25 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
       queryParts.push(`"${location}"`);
     }
 
-    // Add email providers in proper OR format
-    if (emailProviders.length > 0) {
-      const providers = emailProviders.map(p => `"${p}"`).join(" OR ");
-      queryParts.push(`(${providers})`);
-    }
-
-    // Add websites with site: operator (no OR, just all sites)
+    // Add websites with site: operator if specified
     if (websites.length > 0) {
-      websites.forEach(w => {
-        queryParts.push(`site:${w}`);
-      });
+      const sitePart = websites.map(w => `site:${w}`).join(" OR ");
+      queryParts.push(`(${sitePart})`);
     }
 
-    // Build final query (engines are not part of Google syntax, we ignore them)
+    // Build final query - email providers will be filtered server-side
     const query = queryParts.join(" ");
     
+    // Create search parameters object to pass to backend
+    const searchParams = {
+      query,
+      emailProviders,
+      searchEngines: searchEngines.length > 0 ? searchEngines : ['google.com'],
+      websites
+    };
+    
     setGeneratedQuery(query);
-    onQueryGenerated(query);
+    onQueryGenerated(JSON.stringify(searchParams));
   };
 
   const executeSearch = () => {
@@ -95,7 +96,18 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
       generateQuery();
       return;
     }
-    onSearch(generatedQuery, location || undefined, pages);
+    
+    // Pass search parameters as JSON
+    const searchParams = {
+      query: keyword,
+      location: location || undefined,
+      emailProviders,
+      searchEngines: searchEngines.length > 0 ? searchEngines : ['google.com'],
+      websites,
+      pages
+    };
+    
+    onSearch(JSON.stringify(searchParams), location || undefined, pages);
   };
 
   return (
