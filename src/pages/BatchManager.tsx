@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Upload, Play, Pause, Trash2, Download, Plus, FileDown } from "lucide-react";
+import { ArrowLeft, Upload, Play, Pause, Trash2, Download, Plus, FileDown, Eye } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 
@@ -505,7 +505,16 @@ export default function BatchManager() {
                         <Progress value={getProgress(batch)} />
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
+                        <Button 
+                          onClick={() => navigate(`/batch/${batch.id}`)}
+                          size="sm"
+                          variant="default"
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          Vedi Dettagli
+                        </Button>
+
                         {batch.status === 'pending' || batch.status === 'paused' ? (
                           <Button onClick={() => startBatch(batch.id)} size="sm">
                             <Play className="mr-2 h-4 w-4" />

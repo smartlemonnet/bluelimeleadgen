@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import BatchManager from "./pages/BatchManager";
+import BatchDetails from "./pages/BatchDetails";
 import Contacts from "./pages/Contacts";
 import Searches from "./pages/Searches";
 import NotFound from "./pages/NotFound";
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
           <Route path="/searches" element={<ProtectedRoute><Searches /></ProtectedRoute>} />
           <Route path="/batch" element={<ProtectedRoute><BatchManager /></ProtectedRoute>} />
+          <Route path="/batch/:batchId" element={<ProtectedRoute><BatchDetails /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
