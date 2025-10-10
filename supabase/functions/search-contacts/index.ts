@@ -193,33 +193,43 @@ async function extractContactsFromResults(
       }
     }
 
-    // Try to fetch HTML content to extract more emails
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      
-      const htmlResponse = await fetch(link, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (htmlResponse.ok) {
-        const contentType = htmlResponse.headers.get('content-type') || '';
-        if (contentType.includes('text/html')) {
-          const html = await htmlResponse.text();
-          const limitedHtml = html.substring(0, 50000); // Limit to 50KB
-          text += ' ' + limitedHtml;
-          htmlFetched = true;
-          fetchedPages++;
+    // Check if this is a social media link (Instagram, Facebook, TikTok)
+    const isSocialMedia = link.includes('instagram.com') || 
+                          link.includes('facebook.com') || 
+                          link.includes('tiktok.com');
+
+    // For social media, ONLY use snippets (don't fetch HTML - it's blocked)
+    // For other sites, try to fetch HTML for more emails
+    if (!isSocialMedia) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const htmlResponse = await fetch(link, {
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          },
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (htmlResponse.ok) {
+          const contentType = htmlResponse.headers.get('content-type') || '';
+          if (contentType.includes('text/html')) {
+            const html = await htmlResponse.text();
+            const limitedHtml = html.substring(0, 50000); // Limit to 50KB
+            text += ' ' + limitedHtml;
+            htmlFetched = true;
+            fetchedPages++;
+          }
         }
+      } catch (e) {
+        const errorMsg = e instanceof Error ? e.message : 'Unknown error';
+        console.log(`Could not fetch ${link}: ${errorMsg}`);
       }
-    } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : 'Unknown error';
-      console.log(`Could not fetch ${link}: ${errorMsg}`);
+    } else {
+      console.log(`Skipping HTML fetch for social media: ${link} - using snippet only`);
     }
 
     // Extract emails with improved regex - exclude common file extensions
