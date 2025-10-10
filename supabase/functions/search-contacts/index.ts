@@ -30,7 +30,7 @@ serve(async (req) => {
 
     const numPages = Math.min(Math.max(1, pages), 50);
     console.log('Provided query from frontend:', query);
-    console.log('Search params:', { numPages, emailProviders, websites, targetNames, providedUserId });
+    console.log('Search params:', { numPages, emailProviders, websites, targetNames, providedUserId, location });
 
     // Use query as-is from frontend (it's already complete)
     const searchQuery = query;
@@ -83,17 +83,25 @@ serve(async (req) => {
     for (let page = 1; page <= numPages; page++) {
       console.log(`Fetching page ${page}/${numPages}`);
       
+      const serperBody: any = {
+        q: searchQuery,
+        num: 10,
+        page: page,
+      };
+
+      // Add location if provided (city or region)
+      if (location) {
+        serperBody.location = location;
+        console.log(`Using location filter: ${location}`);
+      }
+
       const serperResponse = await fetch('https://google.serper.dev/search', {
         method: 'POST',
         headers: {
           'X-API-KEY': serperApiKey,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          q: searchQuery,
-          num: 10,
-          page: page,
-        }),
+        body: JSON.stringify(serperBody),
       });
 
       if (!serperResponse.ok) {
