@@ -71,42 +71,37 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
   };
 
   const generateQuery = () => {
-    let queryParts: string[] = [];
-
-    // 1. Keyword
+    // Build REAL search query for Google
+    let searchQueryParts: string[] = [];
+    
     if (keyword) {
-      queryParts.push(`Parola chiave: ${keyword}`);
+      searchQueryParts.push(keyword);
     }
-
-    // 2. Location
+    
     if (location) {
-      queryParts.push(`Luogo: "${location}"`);
+      searchQueryParts.push(`"${location}"`);
     }
-
-    // 3. Email providers
-    if (emailProviders.length > 0) {
-      queryParts.push(`Provider email: ${emailProviders.join(', ')}`);
-    }
-
-    // 4. Search engines
-    if (searchEngines.length > 0) {
-      queryParts.push(`Motori: ${searchEngines.join(', ')}`);
-    }
-
-    // 5. Websites
+    
     if (websites.length > 0) {
-      queryParts.push(`Siti web: ${websites.join(', ')}`);
+      const sitePart = websites.map(w => `site:${w}`).join(" OR ");
+      searchQueryParts.push(`(${sitePart})`);
     }
-
-    // 6. Target names
-    if (targetNames.length > 0) {
-      queryParts.push(`Nomi: ${targetNames.join(', ')}`);
-    }
-
-    const displayQuery = queryParts.join('\n');
+    
+    const realQuery = searchQueryParts.join(" ");
+    
+    // Build VISUAL display for user
+    let displayParts: string[] = [];
+    if (keyword) displayParts.push(`Parola chiave: ${keyword}`);
+    if (location) displayParts.push(`Luogo: "${location}"`);
+    if (emailProviders.length > 0) displayParts.push(`Provider email: ${emailProviders.join(', ')}`);
+    if (searchEngines.length > 0) displayParts.push(`Motori: ${searchEngines.join(', ')}`);
+    if (websites.length > 0) displayParts.push(`Siti web: ${websites.join(', ')}`);
+    if (targetNames.length > 0) displayParts.push(`Nomi: ${targetNames.join(', ')}`);
+    
+    const displayQuery = displayParts.join('\n');
     
     setGeneratedQuery(displayQuery);
-    onQueryGenerated(displayQuery);
+    onQueryGenerated(realQuery);
   };
 
   const executeSearch = () => {
