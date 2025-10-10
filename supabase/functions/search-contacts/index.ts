@@ -21,13 +21,14 @@ serve(async (req) => {
     const emailProviders = requestData.emailProviders || [];
     const websites = requestData.websites || [];
     const searchEngines = requestData.searchEngines || [];
+    const targetNames = requestData.targetNames || [];
     
     if (!query) {
       throw new Error('Query is required');
     }
 
     const numPages = Math.min(Math.max(1, pages), 20);
-    console.log('Search params:', { query, location, numPages, emailProviders, websites, searchEngines });
+    console.log('Search params:', { query, location, numPages, emailProviders, websites, searchEngines, targetNames });
 
     // Build the search query
     let searchQuery = query;
@@ -115,7 +116,8 @@ serve(async (req) => {
         supabase,
         userId,
         emailProviders,
-        websites
+        websites,
+        targetNames
       );
       
       allContacts.push(...pageContacts);
@@ -157,7 +159,8 @@ async function extractContactsFromResults(
   supabase: any,
   userId: string | null,
   emailProviders: string[] = [],
-  websites: string[] = []
+  websites: string[] = [],
+  targetNames: string[] = []
 ) {
   const contacts: any[] = [];
   const results = serperData.organic || [];
@@ -201,9 +204,25 @@ async function extractContactsFromResults(
       
       seenEmails.add(email.toLowerCase());
 
+      const extractedName = extractName(title, snippet);
+      
+      // Apply name filter if specified
+      if (targetNames.length > 0 && extractedName) {
+        const nameMatches = targetNames.some(targetName => 
+          extractedName.toLowerCase().includes(targetName.toLowerCase())
+        );
+        if (!nameMatches) {
+          console.log(`Skipping ${email} - name "${extractedName}" doesn't match target names`);
+          continue; // Skip this contact if name doesn't match
+        }
+      } else if (targetNames.length > 0 && !extractedName) {
+        console.log(`Skipping ${email} - no name found and filter is active`);
+        continue; // Skip if we have name filters but no name was found
+      }
+
       const contact = {
         email: email.toLowerCase(),
-        name: extractName(title, snippet),
+        name: extractedName,
         organization: extractOrganization(title, snippet),
         phone: phones[0] || null,
         website: link,

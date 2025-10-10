@@ -21,6 +21,8 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
   const [currentEngine, setCurrentEngine] = useState("");
   const [websites, setWebsites] = useState<string[]>([]);
   const [currentWebsite, setCurrentWebsite] = useState("");
+  const [targetNames, setTargetNames] = useState<string[]>([]);
+  const [currentName, setCurrentName] = useState("");
   const [generatedQuery, setGeneratedQuery] = useState("");
   const [pages, setPages] = useState(10);
 
@@ -55,6 +57,17 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
 
   const removeWebsite = (website: string) => {
     setWebsites(websites.filter(w => w !== website));
+  };
+
+  const addTargetName = () => {
+    if (currentName && !targetNames.includes(currentName)) {
+      setTargetNames([...targetNames, currentName]);
+      setCurrentName("");
+    }
+  };
+
+  const removeTargetName = (name: string) => {
+    setTargetNames(targetNames.filter(n => n !== name));
   };
 
   const generateQuery = () => {
@@ -103,6 +116,7 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
       emailProviders,
       searchEngines: searchEngines.length > 0 ? searchEngines : undefined,
       websites,
+      targetNames,
       pages
     };
     
@@ -205,7 +219,36 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
             <Button type="button" onClick={addWebsite} size="icon">
               <Plus className="h-4 w-4" />
             </Button>
+        </div>
+
+        <div className="space-y-2">
+          <Label>6. Nomi da cercare (opzionale)</Label>
+          <div className="flex gap-2">
+            <Input
+              placeholder="es: Maria, Anna, Vittoria, Elena"
+              value={currentName}
+              onChange={(e) => setCurrentName(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && addTargetName()}
+            />
+            <Button type="button" onClick={addTargetName} size="icon">
+              <Plus className="h-4 w-4" />
+            </Button>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Filtra solo i contatti con questi nomi. Lascia vuoto per non filtrare.
+          </p>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {targetNames.map(name => (
+              <Badge key={name} variant="secondary" className="gap-1">
+                {name}
+                <X
+                  className="h-3 w-3 cursor-pointer"
+                  onClick={() => removeTargetName(name)}
+                />
+              </Badge>
+            ))}
+          </div>
+        </div>
           <div className="flex flex-wrap gap-2 mt-2">
             {websites.map(website => (
               <Badge key={website} variant="secondary" className="gap-1">
