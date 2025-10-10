@@ -12,37 +12,15 @@ serve(async (req) => {
   }
 
   try {
-    let requestData = await req.json();
+    const requestData = await req.json();
     
-    // Handle both old format (string query) and new format (JSON params)
-    let query: string;
-    let location: string | undefined;
-    let pages = 1;
-    let emailProviders: string[] = [];
-    let websites: string[] = [];
-    let searchEngines: string[] = ['google.com'];
-    
-    if (typeof requestData === 'string') {
-      // Old format compatibility
-      query = requestData;
-    } else if (typeof requestData.query === 'string' && requestData.query.startsWith('{')) {
-      // New format with JSON params
-      const params = JSON.parse(requestData.query);
-      query = params.query;
-      location = params.location;
-      pages = params.pages || requestData.pages || 1;
-      emailProviders = params.emailProviders || [];
-      websites = params.websites || [];
-      searchEngines = params.searchEngines || ['google.com'];
-    } else {
-      // Direct params
-      query = requestData.query;
-      location = requestData.location;
-      pages = requestData.pages || 1;
-      emailProviders = requestData.emailProviders || [];
-      websites = requestData.websites || [];
-      searchEngines = requestData.searchEngines || ['google.com'];
-    }
+    // Extract parameters directly from request
+    const query = requestData.query;
+    const location = requestData.location;
+    const pages = requestData.pages || 1;
+    const emailProviders = requestData.emailProviders || [];
+    const websites = requestData.websites || [];
+    const searchEngines = requestData.searchEngines || [];
     
     if (!query) {
       throw new Error('Query is required');
@@ -59,9 +37,11 @@ serve(async (req) => {
     
     // Add site filter if websites specified
     if (websites.length > 0) {
-      const sitePart = websites.map(w => `site:${w}`).join(" OR ");
+      const sitePart = websites.map((w: string) => `site:${w}`).join(" OR ");
       searchQuery = `${searchQuery} (${sitePart})`;
     }
+    
+    console.log('Final search query:', searchQuery);
 
     // Call Serper API
     const serperApiKey = Deno.env.get('SERPER_API_KEY');

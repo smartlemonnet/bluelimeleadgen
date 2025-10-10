@@ -9,7 +9,7 @@ import { X, Plus, Search } from "lucide-react";
 
 interface AdvancedQueryBuilderProps {
   onQueryGenerated: (query: string) => void;
-  onSearch: (query: string, location: string | undefined, pages: number) => void;
+  onSearch: (searchParams: any) => void;
 }
 
 export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQueryBuilderProps) => {
@@ -92,22 +92,21 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
   };
 
   const executeSearch = () => {
-    if (!generatedQuery) {
-      generateQuery();
+    if (!keyword) {
       return;
     }
     
-    // Pass search parameters as JSON
+    // Pass all search parameters as an object
     const searchParams = {
       query: keyword,
       location: location || undefined,
       emailProviders,
-      searchEngines: searchEngines.length > 0 ? searchEngines : ['google.com'],
+      searchEngines: searchEngines.length > 0 ? searchEngines : undefined,
       websites,
       pages
     };
     
-    onSearch(JSON.stringify(searchParams), location || undefined, pages);
+    onSearch(searchParams);
   };
 
   return (

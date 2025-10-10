@@ -29,14 +29,15 @@ const Index = () => {
     console.log("Query generata:", generatedQuery);
   };
 
-  const handleSearch = async (query: string, location?: string, pages: number = 1) => {
+  const handleSearch = async (searchParams: any) => {
+    const pages = searchParams.pages || 1;
     setIsLoading(true);
     setContacts([]);
     setProgress({ current: 0, total: pages });
 
     try {
       const { data, error } = await supabase.functions.invoke('search-contacts', {
-        body: { query, location, pages }
+        body: searchParams
       });
 
       if (error) throw error;
