@@ -1,16 +1,16 @@
-query,location,pages
-"site:instagram.com leggings milano email",Milano,10
-"site:instagram.com yoga milano email contact",Milano,10
-"site:instagram.com crossfit milano email",Milano,10
-"site:instagram.com fitness donna milano email",Milano,10
-"site:instagram.com pilates milano email contact",Milano,10
-"site:facebook.com fitness milano email",Milano,10
-"site:facebook.com yoga milano email contact",Milano,10
-"site:instagram.com personal trainer milano email",Milano,10
-"site:instagram.com wellness milano email",Milano,10
-"site:facebook.com crossfit milano email",Milano,10
-"site:instagram.com athleisure milano email",Milano,10
-"site:facebook.com pilates milano email",Milano,10
-"site:instagram.com nutrition milano email contact",Milano,10
-"site:facebook.com personal trainer milano email",Milano,10
-"site:instagram.com sportswear milano email",Milano,10
+query,location,pages,target_names
+"site:instagram.com leggings milano email",Milano,10,""
+"site:instagram.com yoga milano email contact",Milano,10,""
+"site:instagram.com crossfit milano email",Milano,10,""
+"site:instagram.com fitness donna milano email",Milano,10,""
+"site:instagram.com pilates milano email contact",Milano,10,""
+"site:facebook.com fitness milano email",Milano,10,""
+"site:facebook.com yoga milano email contact",Milano,10,""
+"site:instagram.com personal trainer milano email",Milano,10,""
+"site:instagram.com wellness milano email",Milano,10,""
+"site:facebook.com crossfit milano email",Milano,10,""
+"site:instagram.com athleisure milano email",Milano,10,""
+"site:facebook.com pilates milano email",Milano,10,""
+"site:instagram.com nutrition milano email contact",Milano,10,""
+"site:facebook.com personal trainer milano email",Milano,10,""
+"site:instagram.com sportswear milano email",Milano,10,""

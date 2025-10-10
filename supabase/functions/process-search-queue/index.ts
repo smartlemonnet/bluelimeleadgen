@@ -11,6 +11,7 @@ interface SearchJob {
   query: string;
   location: string | null;
   pages: number;
+  target_names: string[] | null;
 }
 
 Deno.serve(async (req) => {
@@ -105,6 +106,7 @@ Deno.serve(async (req) => {
             pages: job.pages,
             location: job.location, // Passa la località
             user_id: jobData?.user_id, // Passa user_id esplicitamente
+            targetNames: job.target_names || [], // Passa i nomi target
           }),
         });
 

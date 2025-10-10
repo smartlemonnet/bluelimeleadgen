@@ -125,6 +125,7 @@ export default function BatchManager() {
             query: parts[0] || '',
             location: parts[1] || null,
             pages: parseInt(parts[2]) || 10,
+            target_names: parts[3] ? parts[3].split('|').map(n => n.trim()).filter(Boolean) : null,
           };
         }).filter(j => j.query);
       }
@@ -262,10 +263,10 @@ export default function BatchManager() {
 
   const downloadTemplate = async (format: 'csv' | 'xlsx' = 'xlsx') => {
     const data = [
-      ['query', 'location', 'pages'],
-      ['marketing agentur (site:linkedin.com) ("@gmail.com")', 'Berlin', '10'],
-      ['werbeagentur (site:facebook.com) ("@gmail.com")', 'München', '10'],
-      ['digital marketing', 'Hamburg', '10'],
+      ['query', 'location', 'pages', 'target_names'],
+      ['marketing agentur (site:linkedin.com) ("@gmail.com")', 'Berlin', '10', ''],
+      ['werbeagentur (site:facebook.com) ("@gmail.com")', 'München', '10', 'maria|sara|laura'],
+      ['digital marketing', 'Hamburg', '10', ''],
     ];
 
     if (format === 'xlsx') {
@@ -275,10 +276,10 @@ export default function BatchManager() {
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Batch');
       XLSX.writeFile(workbook, 'batch_template.xlsx');
     } else {
-      const template = `query,location,pages
-"marketing agentur (site:linkedin.com) (""@gmail.com"")",Berlin,10
-"werbeagentur (site:facebook.com) (""@gmail.com"")",München,10
-"digital marketing",Hamburg,10`;
+      const template = `query,location,pages,target_names
+"marketing agentur (site:linkedin.com) (""@gmail.com"")",Berlin,10,""
+"werbeagentur (site:facebook.com) (""@gmail.com"")",München,10,"maria|sara|laura"
+"digital marketing",Hamburg,10,""`;
       
       const blob = new Blob([template], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);

@@ -155,6 +155,7 @@ export type Database = {
           result_count: number | null
           search_id: string | null
           status: string
+          target_names: string[] | null
           user_id: string
         }
         Insert: {
@@ -169,6 +170,7 @@ export type Database = {
           result_count?: number | null
           search_id?: string | null
           status?: string
+          target_names?: string[] | null
           user_id: string
         }
         Update: {
@@ -183,6 +185,7 @@ export type Database = {
           result_count?: number | null
           search_id?: string | null
           status?: string
+          target_names?: string[] | null
           user_id?: string
         }
         Relationships: [
