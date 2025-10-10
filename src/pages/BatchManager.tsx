@@ -67,16 +67,33 @@ export default function BatchManager() {
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      setCsvContent(text);
-    };
-    reader.readAsText(file);
+    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+
+    if (isExcel) {
+      // Import XLSX dynamically
+      const XLSX = await import('xlsx');
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const csvText = XLSX.utils.sheet_to_csv(firstSheet);
+        setCsvContent(csvText);
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      // CSV file
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        setCsvContent(text);
+      };
+      reader.readAsText(file);
+    }
   };
 
   const createBatch = async () => {
@@ -243,19 +260,34 @@ export default function BatchManager() {
     }
   };
 
-  const downloadTemplate = () => {
-    const template = `query,location,pages
+  const downloadTemplate = async (format: 'csv' | 'xlsx' = 'xlsx') => {
+    const data = [
+      ['query', 'location', 'pages'],
+      ['marketing agentur (site:linkedin.com) ("@gmail.com")', 'Berlin', '10'],
+      ['werbeagentur (site:facebook.com) ("@gmail.com")', 'München', '10'],
+      ['digital marketing', 'Hamburg', '10'],
+    ];
+
+    if (format === 'xlsx') {
+      const XLSX = await import('xlsx');
+      const worksheet = XLSX.utils.aoa_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Batch');
+      XLSX.writeFile(workbook, 'batch_template.xlsx');
+    } else {
+      const template = `query,location,pages
 "marketing agentur (site:linkedin.com) (""@gmail.com"")",Berlin,10
 "werbeagentur (site:facebook.com) (""@gmail.com"")",München,10
 "digital marketing",Hamburg,10`;
-    
-    const blob = new Blob([template], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'batch_template.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+      
+      const blob = new Blob([template], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'batch_template.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   };
 
   const exportBatchJobs = async (batchId: string, batchName: string) => {
@@ -407,12 +439,18 @@ export default function BatchManager() {
               <div className="space-y-4 p-4 rounded-lg bg-secondary/5 border border-secondary/20">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-secondary flex items-center gap-2">
-                    2️⃣ Carica File CSV <span className="text-muted-foreground text-sm">(opzionale)</span>
+                    2️⃣ Carica File Excel/CSV <span className="text-muted-foreground text-sm">(opzionale)</span>
                   </h3>
-                  <Button variant="outline" size="sm" onClick={downloadTemplate}>
-                    <Download className="mr-2 h-4 w-4" />
-                    Scarica Template
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => downloadTemplate('xlsx')}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Template Excel
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => downloadTemplate('csv')}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Template CSV
+                    </Button>
+                  </div>
                 </div>
                 
                 <div className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
@@ -426,7 +464,7 @@ export default function BatchManager() {
                     <Input
                       id="csvFile"
                       type="file"
-                      accept=".csv"
+                      accept=".csv,.xlsx,.xls"
                       className="hidden"
                       onChange={handleFileUpload}
                     />

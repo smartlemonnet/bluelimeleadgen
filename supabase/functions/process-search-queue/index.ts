@@ -103,6 +103,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             query: job.query,
             pages: job.pages,
+            location: job.location, // Passa la località
             user_id: jobData?.user_id, // Passa user_id esplicitamente
           }),
         });
