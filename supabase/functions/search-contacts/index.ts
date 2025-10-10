@@ -22,14 +22,15 @@ serve(async (req) => {
     const websites = requestData.websites || [];
     const searchEngines = requestData.searchEngines || [];
     const targetNames = requestData.targetNames || [];
+    const providedUserId = requestData.user_id; // From batch processor
     
     if (!query) {
       throw new Error('Query is required');
     }
 
-    const numPages = Math.min(Math.max(1, pages), 20);
+    const numPages = Math.min(Math.max(1, pages), 50);
     console.log('Provided query from frontend:', query);
-    console.log('Search params:', { numPages, emailProviders, websites, targetNames });
+    console.log('Search params:', { numPages, emailProviders, websites, targetNames, providedUserId });
 
     // Use query as-is from frontend (it's already complete)
     const searchQuery = query;
@@ -49,13 +50,16 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Try to get user if authenticated
-    let userId: string | null = null;
-    if (authHeader) {
+    // Get user ID: from body (batch) or from auth header (frontend)
+    let userId: string | null = providedUserId || null;
+    
+    if (!userId && authHeader) {
       const token = authHeader.replace('Bearer ', '');
       const { data: { user } } = await supabase.auth.getUser(token);
       userId = user?.id || null;
     }
+
+    console.log('User ID for this search:', userId);
 
     // Save search to database if user is authenticated
     let searchId: string | null = null;

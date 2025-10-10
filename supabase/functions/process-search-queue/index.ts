@@ -85,26 +85,41 @@ Deno.serve(async (req) => {
         .eq('id', job.id);
 
       try {
-        // Chiama l'edge function search-contacts
-        const searchResponse = await supabase.functions.invoke('search-contacts', {
-          body: {
-            query: job.query,
-            location: job.location,
-            pages: job.pages,
+        // Ottieni user_id del job
+        const { data: jobData } = await supabase
+          .from('search_jobs')
+          .select('user_id')
+          .eq('id', job.id)
+          .single();
+
+        // Chiama search-contacts passando user_id nel body
+        const searchUrl = `${supabaseUrl}/functions/v1/search-contacts`;
+        const searchResponse = await fetch(searchUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseKey}`,
           },
+          body: JSON.stringify({
+            query: job.query,
+            pages: job.pages,
+            user_id: jobData?.user_id, // Passa user_id esplicitamente
+          }),
         });
 
-        if (searchResponse.error) {
-          throw new Error(searchResponse.error.message);
+        if (!searchResponse.ok) {
+          const errorText = await searchResponse.text();
+          throw new Error(`Search failed: ${searchResponse.status} - ${errorText}`);
         }
 
-        const searchData = searchResponse.data;
+        const searchData = await searchResponse.json();
         console.log(`Search completed: ${searchData.contacts?.length || 0} contacts found`);
 
-        // Ottieni l'ID della ricerca appena creata
+        // Ottieni l'ID della ricerca appena creata per questo user
         const { data: latestSearch } = await supabase
           .from('searches')
           .select('id')
+          .eq('user_id', jobData?.user_id)
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
