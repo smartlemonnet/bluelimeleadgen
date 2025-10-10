@@ -36,8 +36,9 @@ serve(async (req) => {
       searchQuery = `${query} "${location}"`;
     }
     
-    // Add site filter if websites specified
-    if (websites.length > 0) {
+    // Add site filter if websites specified and not already in query
+    const hasSiteOperator = /\bsite:/.test(searchQuery);
+    if (websites.length > 0 && !hasSiteOperator) {
       const sitePart = websites.map((w: string) => `site:${w}`).join(" OR ");
       searchQuery = `${searchQuery} (${sitePart})`;
     }

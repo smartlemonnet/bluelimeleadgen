@@ -71,36 +71,42 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
   };
 
   const generateQuery = () => {
-    // Build REAL search query for Google
+    // Build REAL search query for Google including all filters
     let searchQueryParts: string[] = [];
     
-    if (keyword) {
-      searchQueryParts.push(keyword);
-    }
+    if (keyword) searchQueryParts.push(keyword);
+    if (location) searchQueryParts.push(`"${location}"`);
     
-    if (location) {
-      searchQueryParts.push(`"${location}"`);
-    }
-    
+    // site: filters
     if (websites.length > 0) {
       const sitePart = websites.map(w => `site:${w}`).join(" OR ");
       searchQueryParts.push(`(${sitePart})`);
     }
+
+    // email provider hints (e.g., "@gmail.com" OR "gmail.com")
+    if (emailProviders.length > 0) {
+      const providerTerms = Array.from(new Set(
+        emailProviders.flatMap((raw) => {
+          const p = raw.trim();
+          if (!p) return [] as string[];
+          const terms: string[] = [];
+          terms.push(`"${p}"`);
+          const noAt = p.replace('@', '');
+          if (!p.includes('.')) terms.push(`"${noAt}.com"`);
+          return terms;
+        })
+      ));
+      if (providerTerms.length > 0) searchQueryParts.push(`(${providerTerms.join(' OR ')})`);
+    }
+
+    // target names
+    if (targetNames.length > 0) {
+      const namesPart = targetNames.map(n => `"${n}"`).join(' OR ');
+      searchQueryParts.push(`(${namesPart})`);
+    }
     
-    const realQuery = searchQueryParts.join(" ");
-    
-    // Build VISUAL display for user
-    let displayParts: string[] = [];
-    if (keyword) displayParts.push(`Parola chiave: ${keyword}`);
-    if (location) displayParts.push(`Luogo: "${location}"`);
-    if (emailProviders.length > 0) displayParts.push(`Provider email: ${emailProviders.join(', ')}`);
-    if (searchEngines.length > 0) displayParts.push(`Motori: ${searchEngines.join(', ')}`);
-    if (websites.length > 0) displayParts.push(`Siti web: ${websites.join(', ')}`);
-    if (targetNames.length > 0) displayParts.push(`Nomi: ${targetNames.join(', ')}`);
-    
-    const displayQuery = displayParts.join('\n');
-    
-    setGeneratedQuery(displayQuery);
+    const realQuery = searchQueryParts.join(' ');
+    setGeneratedQuery(realQuery);
     onQueryGenerated(realQuery);
   };
 
