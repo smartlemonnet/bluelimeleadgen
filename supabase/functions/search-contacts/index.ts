@@ -271,18 +271,29 @@ async function extractContactsFromResults(
       
       // Apply name filter if specified (more flexible)
       if (targetNames.length > 0) {
+        const textLower = text.toLowerCase();
         const nameMatches = targetNames.some(targetName => {
-          const targetLower = targetName.toLowerCase();
-          // Check extracted name
+          const targetLower = targetName.toLowerCase().trim();
+          
+          // Check extracted name first
           if (extractedName && extractedName.toLowerCase().includes(targetLower)) {
             return true;
           }
-          // Fallback: check in full text
-          return text.toLowerCase().includes(targetLower);
+          
+          // Check in title and snippet (more visible content)
+          const visibleText = `${title} ${snippet}`.toLowerCase();
+          if (visibleText.includes(targetLower)) {
+            return true;
+          }
+          
+          // Only if not found in visible content, check full text (but with word boundary)
+          // Use word boundary to avoid false matches like "MARIA" in "PRIMARIA"
+          const wordBoundaryRegex = new RegExp(`\\b${targetLower}\\b`, 'i');
+          return wordBoundaryRegex.test(textLower);
         });
         
         if (!nameMatches) {
-          console.log(`Skipping ${email} - no match for target names in text`);
+          console.log(`Skipping ${email} - no match for target names in visible content`);
           continue;
         }
       }
