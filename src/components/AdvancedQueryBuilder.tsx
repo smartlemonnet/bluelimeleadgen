@@ -48,10 +48,24 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
     setSearchEngines(searchEngines.filter(e => e !== engine));
   };
 
+  const normalizeWebsite = (url: string): string => {
+    let normalized = url.trim().toLowerCase();
+    normalized = normalized.replace(/^https?:\/\//, '');
+    normalized = normalized.replace(/^www\./, '');
+    normalized = normalized.split('/')[0];
+    if (!normalized.includes('.')) {
+      normalized += '.com';
+    }
+    return normalized;
+  };
+
   const addWebsite = () => {
-    if (currentWebsite && !websites.includes(currentWebsite)) {
-      setWebsites([...websites, currentWebsite]);
-      setCurrentWebsite("");
+    if (currentWebsite) {
+      const normalized = normalizeWebsite(currentWebsite);
+      if (!websites.includes(normalized)) {
+        setWebsites([...websites, normalized]);
+        setCurrentWebsite("");
+      }
     }
   };
 
@@ -115,12 +129,45 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
       return;
     }
     
-    // Pass all search parameters as an object
+    // Generate query if not already generated
+    let queryToSend = generatedQuery;
+    if (!queryToSend) {
+      generateQuery();
+      // Wait for state update, use current values to build query
+      let parts: string[] = [];
+      if (keyword) parts.push(keyword);
+      if (location) parts.push(`"${location}"`);
+      if (websites.length > 0) {
+        const sitePart = websites.map(w => `site:${w}`).join(" OR ");
+        parts.push(`(${sitePart})`);
+      }
+      if (emailProviders.length > 0) {
+        const providerTerms = Array.from(new Set(
+          emailProviders.flatMap((raw) => {
+            const p = raw.trim();
+            if (!p) return [] as string[];
+            const terms: string[] = [];
+            terms.push(`"${p}"`);
+            const noAt = p.replace('@', '');
+            if (!p.includes('.')) terms.push(`"${noAt}.com"`);
+            return terms;
+          })
+        ));
+        if (providerTerms.length > 0) parts.push(`(${providerTerms.join(' OR ')})`);
+      }
+      if (targetNames.length > 0) {
+        const namesPart = targetNames.map(n => `"${n}"`).join(' OR ');
+        parts.push(`(${namesPart})`);
+      }
+      queryToSend = parts.join(' ');
+    }
+    
+    console.log('Sending query to backend:', queryToSend);
+    
+    // Pass the FULL query to backend
     const searchParams = {
-      query: keyword,
-      location: location || undefined,
+      query: queryToSend,
       emailProviders,
-      searchEngines: searchEngines.length > 0 ? searchEngines : undefined,
       websites,
       targetNames,
       pages

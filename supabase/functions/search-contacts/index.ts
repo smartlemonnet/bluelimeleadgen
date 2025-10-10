@@ -28,22 +28,13 @@ serve(async (req) => {
     }
 
     const numPages = Math.min(Math.max(1, pages), 20);
-    console.log('Search params:', { query, location, numPages, emailProviders, websites, searchEngines, targetNames });
+    console.log('Provided query from frontend:', query);
+    console.log('Search params:', { numPages, emailProviders, websites, targetNames });
 
-    // Build the search query
-    let searchQuery = query;
-    if (location) {
-      searchQuery = `${query} "${location}"`;
-    }
+    // Use query as-is from frontend (it's already complete)
+    const searchQuery = query;
     
-    // Add site filter if websites specified and not already in query
-    const hasSiteOperator = /\bsite:/.test(searchQuery);
-    if (websites.length > 0 && !hasSiteOperator) {
-      const sitePart = websites.map((w: string) => `site:${w}`).join(" OR ");
-      searchQuery = `${searchQuery} (${sitePart})`;
-    }
-    
-    console.log('Final search query:', searchQuery);
+    console.log('Final search query sent to Serper:', searchQuery);
 
     // Call Serper API
     const serperApiKey = Deno.env.get('SERPER_API_KEY');
@@ -166,24 +157,58 @@ async function extractContactsFromResults(
   const contacts: any[] = [];
   const results = serperData.organic || [];
   
+  let fetchedPages = 0;
+  let emailsFoundInHTML = 0;
+  
   for (const result of results) {
     const snippet = result.snippet || '';
     const title = result.title || '';
     const link = result.link || '';
-    const text = `${title} ${snippet}`;
+    let text = `${title} ${snippet}`;
 
     // Apply website filter if specified
     if (websites.length > 0) {
       const linkDomain = new URL(link).hostname.replace('www.', '');
       const matchesDomain = websites.some(w => linkDomain.includes(w.replace('www.', '')));
       if (!matchesDomain) {
-        continue; // Skip this result if it doesn't match any specified website
+        continue;
       }
+    }
+
+    // Try to fetch HTML content to extract more emails
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const htmlResponse = await fetch(link, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (htmlResponse.ok) {
+        const contentType = htmlResponse.headers.get('content-type') || '';
+        if (contentType.includes('text/html')) {
+          const html = await htmlResponse.text();
+          text += ' ' + html.substring(0, 50000); // Limit to 50KB
+          fetchedPages++;
+        }
+      }
+    } catch (error) {
+      // Ignore fetch errors, continue with snippet only
+      console.log(`Could not fetch ${link}:`, error.message);
     }
 
     // Extract emails with improved regex
     const emailRegex = /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g;
     const emails = text.match(emailRegex) || [];
+    
+    if (emails.length > 0 && text.length > snippet.length + title.length) {
+      emailsFoundInHTML += emails.length;
+    }
 
     // Extract phone numbers (international format)
     const phoneRegex = /(\+?\d{1,4}[-.\s]?)?(\(?\d{2,4}\)?[-.\s]?)?\d{3,4}[-.\s]?\d{3,4}/g;
@@ -207,18 +232,22 @@ async function extractContactsFromResults(
 
       const extractedName = extractName(title, snippet);
       
-      // Apply name filter if specified
-      if (targetNames.length > 0 && extractedName) {
-        const nameMatches = targetNames.some(targetName => 
-          extractedName.toLowerCase().includes(targetName.toLowerCase())
-        );
+      // Apply name filter if specified (more flexible)
+      if (targetNames.length > 0) {
+        const nameMatches = targetNames.some(targetName => {
+          const targetLower = targetName.toLowerCase();
+          // Check extracted name
+          if (extractedName && extractedName.toLowerCase().includes(targetLower)) {
+            return true;
+          }
+          // Fallback: check in full text
+          return text.toLowerCase().includes(targetLower);
+        });
+        
         if (!nameMatches) {
-          console.log(`Skipping ${email} - name "${extractedName}" doesn't match target names`);
-          continue; // Skip this contact if name doesn't match
+          console.log(`Skipping ${email} - no match for target names in text`);
+          continue;
         }
-      } else if (targetNames.length > 0 && !extractedName) {
-        console.log(`Skipping ${email} - no name found and filter is active`);
-        continue; // Skip if we have name filters but no name was found
       }
 
       const contact = {
@@ -250,6 +279,7 @@ async function extractContactsFromResults(
     }
   }
 
+  console.log(`Extraction stats: ${fetchedPages} pages fetched, ${emailsFoundInHTML} emails found in HTML content`);
   return contacts;
 }
 
