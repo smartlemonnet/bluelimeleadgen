@@ -31,23 +31,45 @@ serve(async (req) => {
   }
 
   try {
+    // Get the authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('No authorization header provided');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - No authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
+          headers: { Authorization: authHeader },
         },
       }
     );
 
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !user) {
+    
+    if (authError) {
+      console.error('Auth error:', authError);
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
+        JSON.stringify({ error: `Authentication failed: ${authError.message}` }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    if (!user) {
+      console.error('No user found');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - No user' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`User authenticated: ${user.id}`);
 
     const { emails, listName }: ValidationRequest = await req.json();
     console.log(`Starting validation for ${emails.length} emails`);
