@@ -50,10 +50,26 @@ interface ValidationResult {
 }
 
 const COLORS = {
-  deliverable: "#10b981",
-  undeliverable: "#ef4444",
-  risky: "#f59e0b",
-  unknown: "#6b7280",
+  deliverable: {
+    start: "#10b981",
+    end: "#06d6a0",
+    glow: "rgba(16, 185, 129, 0.5)",
+  },
+  undeliverable: {
+    start: "#ef4444",
+    end: "#f72585",
+    glow: "rgba(247, 37, 133, 0.5)",
+  },
+  risky: {
+    start: "#f59e0b",
+    end: "#fbbf24",
+    glow: "rgba(251, 191, 36, 0.5)",
+  },
+  unknown: {
+    start: "#6366f1",
+    end: "#8b5cf6",
+    glow: "rgba(139, 92, 246, 0.5)",
+  },
 };
 
 const ValidationResults = () => {
@@ -139,25 +155,29 @@ const ValidationResults = () => {
     {
       name: "Deliverable",
       value: list.deliverable_count,
-      color: COLORS.deliverable,
+      color: COLORS.deliverable.start,
+      gradient: `url(#deliverableGradient)`,
       description: "The recipient is valid and email can be delivered.",
     },
     {
       name: "Undeliverable",
       value: list.undeliverable_count,
-      color: COLORS.undeliverable,
+      color: COLORS.undeliverable.start,
+      gradient: `url(#undeliverableGradient)`,
       description: "The recipient is invalid and email cannot be delivered.",
     },
     {
       name: "Risky",
       value: list.risky_count,
-      color: COLORS.risky,
+      color: COLORS.risky.start,
+      gradient: `url(#riskyGradient)`,
       description: "The email address is valid but the deliverability is uncertain.",
     },
     {
       name: "Unknown",
       value: list.unknown_count,
-      color: COLORS.unknown,
+      color: COLORS.unknown.start,
+      gradient: `url(#unknownGradient)`,
       description: "The address format is correct, but we could not communicate with the recipient's server.",
     },
   ].filter((item) => item.value > 0);
@@ -238,84 +258,150 @@ const ValidationResults = () => {
           </div>
         </div>
 
-        {/* List Summary */}
-        <Card className="p-6 mb-6 bg-slate-900/50 border-slate-800">
-          <h2 className="text-xl font-semibold mb-6 text-white">Riepilogo Lista</h2>
+        {/* List Summary - MAIN CHART */}
+        <Card className="p-8 mb-6 bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-800/50 border-slate-700 shadow-2xl">
+          <h2 className="text-2xl font-semibold mb-8 text-white">Riepilogo Lista</h2>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Main Pie Chart */}
-            <div className="flex items-center justify-center">
-              <ResponsiveContainer width="100%" height={300}>
+          <div className="relative">
+            {/* Massive Pie Chart */}
+            <div className="flex items-center justify-center mb-8" style={{ filter: 'drop-shadow(0 0 40px rgba(59, 130, 246, 0.3))' }}>
+              <ResponsiveContainer width="100%" height={500}>
                 <PieChart>
+                  <defs>
+                    <radialGradient id="deliverableGradient">
+                      <stop offset="0%" stopColor={COLORS.deliverable.end} />
+                      <stop offset="100%" stopColor={COLORS.deliverable.start} />
+                    </radialGradient>
+                    <radialGradient id="undeliverableGradient">
+                      <stop offset="0%" stopColor={COLORS.undeliverable.end} />
+                      <stop offset="100%" stopColor={COLORS.undeliverable.start} />
+                    </radialGradient>
+                    <radialGradient id="riskyGradient">
+                      <stop offset="0%" stopColor={COLORS.risky.end} />
+                      <stop offset="100%" stopColor={COLORS.risky.start} />
+                    </radialGradient>
+                    <radialGradient id="unknownGradient">
+                      <stop offset="0%" stopColor={COLORS.unknown.end} />
+                      <stop offset="100%" stopColor={COLORS.unknown.start} />
+                    </radialGradient>
+                  </defs>
                   <Pie
                     data={pieData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={80}
-                    outerRadius={120}
-                    paddingAngle={2}
+                    innerRadius={120}
+                    outerRadius={200}
+                    paddingAngle={3}
                     dataKey="value"
+                    strokeWidth={0}
                   >
                     {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                      <Cell key={`cell-${index}`} fill={entry.gradient} />
                     ))}
                   </Pie>
-                  <Tooltip />
-                  <Legend />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      borderRadius: '8px',
+                      color: 'white'
+                    }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="absolute text-center">
-                <div className="text-4xl font-bold text-white">
+              
+              {/* Center Label */}
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                <div className="text-6xl font-bold text-white mb-1" style={{ textShadow: '0 0 20px rgba(255,255,255,0.5)' }}>
                   {list.total_emails.toLocaleString()}
                 </div>
+                <div className="text-sm text-slate-400 uppercase tracking-wider">Total Emails</div>
               </div>
             </div>
 
-            {/* Stats */}
-            <div className="space-y-4">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {pieData.map((item) => (
                 <div
                   key={item.name}
-                  className="p-4 rounded-lg bg-slate-800/30 border border-slate-700"
+                  className="p-5 rounded-xl bg-slate-800/40 border border-slate-700/50 backdrop-blur-sm hover:bg-slate-800/60 transition-all"
+                  style={{
+                    boxShadow: `0 0 20px ${item.color}15`
+                  }}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      <span className="font-semibold text-white">{item.name}</span>
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-white">
-                        {item.value.toLocaleString()}
-                      </span>
-                      <span className="text-sm text-slate-400">
-                        {calculatePercentage(item.value)}%
-                      </span>
-                    </div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div
+                      className="w-4 h-4 rounded-full"
+                      style={{
+                        background: `linear-gradient(135deg, ${COLORS[item.name.toLowerCase() as keyof typeof COLORS].start}, ${COLORS[item.name.toLowerCase() as keyof typeof COLORS].end})`,
+                        boxShadow: `0 0 12px ${COLORS[item.name.toLowerCase() as keyof typeof COLORS].glow}`
+                      }}
+                    />
+                    <span className="font-semibold text-white text-sm">{item.name}</span>
                   </div>
-                  <p className="text-xs text-slate-400">{item.description}</p>
+                  <div className="flex items-baseline gap-2 mb-2">
+                    <span className="text-3xl font-bold text-white">
+                      {item.value.toLocaleString()}
+                    </span>
+                    <span className="text-lg font-semibold" style={{ color: item.color }}>
+                      {calculatePercentage(item.value)}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">{item.description}</p>
                 </div>
               ))}
             </div>
           </div>
         </Card>
 
-        {/* Category Breakdowns */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        {/* Category Breakdowns with Mini Pie Charts */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           {/* Undeliverable Breakdown */}
           {list.undeliverable_count > 0 && (
-            <Card className="p-5 bg-slate-900/50 border-slate-800">
-              <h3 className="text-lg font-semibold mb-4 text-red-400">Undeliverable</h3>
-              <div className="space-y-3">
+            <Card className="p-4 bg-slate-900/50 border-slate-700/50 hover:border-red-500/30 transition-all">
+              <h3 className="text-base font-semibold mb-4 text-red-400 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-red-500 to-pink-600" style={{ boxShadow: '0 0 8px rgba(239, 68, 68, 0.6)' }} />
+                Undeliverable
+              </h3>
+              
+              <div className="flex items-center justify-center mb-4">
+                <ResponsiveContainer width="100%" height={120}>
+                  <PieChart>
+                    <defs>
+                      {Object.keys(undeliverableReasons).map((reason, idx) => (
+                        <radialGradient key={reason} id={`undeliverable-${idx}`}>
+                          <stop offset="0%" stopColor={`hsl(${idx * 60}, 70%, 60%)`} />
+                          <stop offset="100%" stopColor={`hsl(${idx * 60}, 70%, 45%)`} />
+                        </radialGradient>
+                      ))}
+                    </defs>
+                    <Pie
+                      data={Object.entries(undeliverableReasons).map(([name, value], idx) => ({
+                        name,
+                        value,
+                        fill: `url(#undeliverable-${idx})`
+                      }))}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={30}
+                      outerRadius={50}
+                      paddingAngle={2}
+                      dataKey="value"
+                      strokeWidth={0}
+                    />
+                    <Tooltip contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="space-y-2">
                 {Object.entries(undeliverableReasons).map(([reason, count]) => (
-                  <div key={reason} className="flex items-center justify-between text-sm">
+                  <div key={reason} className="flex items-center justify-between text-xs">
                     <span className="text-slate-300 capitalize">{reason.replace(/_/g, " ")}</span>
-                    <div className="flex items-baseline gap-2">
+                    <div className="flex items-baseline gap-1.5">
                       <span className="font-semibold text-white">{count}</span>
-                      <span className="text-xs text-slate-500">
-                        {((count / list.undeliverable_count) * 100).toFixed(1)}%
+                      <span className="text-[10px] text-slate-500">
+                        {((count / list.undeliverable_count) * 100).toFixed(0)}%
                       </span>
                     </div>
                   </div>
@@ -326,16 +412,50 @@ const ValidationResults = () => {
 
           {/* Risky Breakdown */}
           {list.risky_count > 0 && (
-            <Card className="p-5 bg-slate-900/50 border-slate-800">
-              <h3 className="text-lg font-semibold mb-4 text-amber-400">Risky</h3>
-              <div className="space-y-3">
+            <Card className="p-4 bg-slate-900/50 border-slate-700/50 hover:border-amber-500/30 transition-all">
+              <h3 className="text-base font-semibold mb-4 text-amber-400 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400" style={{ boxShadow: '0 0 8px rgba(245, 158, 11, 0.6)' }} />
+                Risky
+              </h3>
+              
+              <div className="flex items-center justify-center mb-4">
+                <ResponsiveContainer width="100%" height={120}>
+                  <PieChart>
+                    <defs>
+                      {Object.keys(riskyReasons).map((reason, idx) => (
+                        <radialGradient key={reason} id={`risky-${idx}`}>
+                          <stop offset="0%" stopColor={`hsl(${40 + idx * 30}, 90%, 60%)`} />
+                          <stop offset="100%" stopColor={`hsl(${40 + idx * 30}, 90%, 50%)`} />
+                        </radialGradient>
+                      ))}
+                    </defs>
+                    <Pie
+                      data={Object.entries(riskyReasons).map(([name, value], idx) => ({
+                        name,
+                        value,
+                        fill: `url(#risky-${idx})`
+                      }))}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={30}
+                      outerRadius={50}
+                      paddingAngle={2}
+                      dataKey="value"
+                      strokeWidth={0}
+                    />
+                    <Tooltip contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="space-y-2">
                 {Object.entries(riskyReasons).map(([reason, count]) => (
-                  <div key={reason} className="flex items-center justify-between text-sm">
+                  <div key={reason} className="flex items-center justify-between text-xs">
                     <span className="text-slate-300 capitalize">{reason.replace(/_/g, " ")}</span>
-                    <div className="flex items-baseline gap-2">
+                    <div className="flex items-baseline gap-1.5">
                       <span className="font-semibold text-white">{count}</span>
-                      <span className="text-xs text-slate-500">
-                        {((count / list.risky_count) * 100).toFixed(1)}%
+                      <span className="text-[10px] text-slate-500">
+                        {((count / list.risky_count) * 100).toFixed(0)}%
                       </span>
                     </div>
                   </div>
@@ -346,16 +466,50 @@ const ValidationResults = () => {
 
           {/* Unknown Breakdown */}
           {list.unknown_count > 0 && (
-            <Card className="p-5 bg-slate-900/50 border-slate-800">
-              <h3 className="text-lg font-semibold mb-4 text-slate-400">Unknown</h3>
-              <div className="space-y-3">
+            <Card className="p-4 bg-slate-900/50 border-slate-700/50 hover:border-indigo-500/30 transition-all">
+              <h3 className="text-base font-semibold mb-4 text-indigo-400 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600" style={{ boxShadow: '0 0 8px rgba(99, 102, 241, 0.6)' }} />
+                Unknown
+              </h3>
+              
+              <div className="flex items-center justify-center mb-4">
+                <ResponsiveContainer width="100%" height={120}>
+                  <PieChart>
+                    <defs>
+                      {Object.keys(unknownReasons).map((reason, idx) => (
+                        <radialGradient key={reason} id={`unknown-${idx}`}>
+                          <stop offset="0%" stopColor={`hsl(${240 + idx * 20}, 70%, 60%)`} />
+                          <stop offset="100%" stopColor={`hsl(${240 + idx * 20}, 70%, 50%)`} />
+                        </radialGradient>
+                      ))}
+                    </defs>
+                    <Pie
+                      data={Object.entries(unknownReasons).map(([name, value], idx) => ({
+                        name,
+                        value,
+                        fill: `url(#unknown-${idx})`
+                      }))}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={30}
+                      outerRadius={50}
+                      paddingAngle={2}
+                      dataKey="value"
+                      strokeWidth={0}
+                    />
+                    <Tooltip contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(99, 102, 241, 0.3)', borderRadius: '6px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="space-y-2">
                 {Object.entries(unknownReasons).map(([reason, count]) => (
-                  <div key={reason} className="flex items-center justify-between text-sm">
+                  <div key={reason} className="flex items-center justify-between text-xs">
                     <span className="text-slate-300 capitalize">{reason.replace(/_/g, " ")}</span>
-                    <div className="flex items-baseline gap-2">
+                    <div className="flex items-baseline gap-1.5">
                       <span className="font-semibold text-white">{count}</span>
-                      <span className="text-xs text-slate-500">
-                        {((count / list.unknown_count) * 100).toFixed(1)}%
+                      <span className="text-[10px] text-slate-500">
+                        {((count / list.unknown_count) * 100).toFixed(0)}%
                       </span>
                     </div>
                   </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Upload, ArrowLeft, Search, FileText } from "lucide-react";
@@ -9,13 +10,11 @@ import { Link, useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 
 interface ValidationList {
   id: string;
@@ -48,6 +47,7 @@ interface ValidationResult {
 const Validate = () => {
   const navigate = useNavigate();
   const [emails, setEmails] = useState<string[]>([]);
+  const [pastedEmails, setPastedEmails] = useState("");
   const [listName, setListName] = useState("");
   const [isValidating, setIsValidating] = useState(false);
   const [validationHistory, setValidationHistory] = useState<ValidationList[]>([]);
@@ -69,6 +69,27 @@ const Validate = () => {
     }
 
     setValidationHistory(data || []);
+  };
+
+  const handlePasteEmails = () => {
+    const lines = pastedEmails.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    const emailList: string[] = [];
+    
+    lines.forEach(line => {
+      // Extract emails from each line (in case there's text around them)
+      const emailRegex = /[\w.-]+@[\w.-]+\.\w+/g;
+      const matches = line.match(emailRegex);
+      if (matches) {
+        emailList.push(...matches);
+      }
+    });
+
+    const uniqueEmails = [...new Set(emailList)];
+    setEmails(uniqueEmails);
+    toast({
+      title: "Email incollate",
+      description: `${uniqueEmails.length} email uniche trovate`,
+    });
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,34 +212,57 @@ const Validate = () => {
           <h2 className="text-lg font-semibold mb-4 text-white">Scegli una Sorgente</h2>
           
           <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-3">
-                <Input
-                  placeholder="Nome lista (es: Lista clienti Q4 2024)"
-                  value={listName}
-                  onChange={(e) => setListName(e.target.value)}
+            <Input
+              placeholder="Nome lista (es: Lista clienti Q4 2024)"
+              value={listName}
+              onChange={(e) => setListName(e.target.value)}
+              disabled={isValidating}
+              className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500"
+            />
+
+            <Tabs defaultValue="paste" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 bg-slate-800/50">
+                <TabsTrigger value="paste" className="data-[state=active]:bg-slate-700">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Incolla una lista
+                </TabsTrigger>
+                <TabsTrigger value="upload" className="data-[state=active]:bg-slate-700">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Carica un file
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="paste" className="space-y-3">
+                <Textarea
+                  placeholder="Incolla le email qui (una per riga o separate da virgole)&#10;esempio@email.com&#10;altro@email.com"
+                  value={pastedEmails}
+                  onChange={(e) => setPastedEmails(e.target.value)}
                   disabled={isValidating}
-                  className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500"
+                  className="min-h-[200px] bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 font-mono text-sm"
                 />
-                
-                <div className="flex gap-3">
+                <Button
+                  onClick={handlePasteEmails}
+                  disabled={isValidating || !pastedEmails.trim()}
+                  variant="outline"
+                  className="w-full bg-slate-800/30 border-slate-700 hover:bg-slate-800 text-slate-300"
+                >
+                  Estrai Email
+                </Button>
+              </TabsContent>
+              
+              <TabsContent value="upload" className="space-y-3">
+                <div className="border-2 border-dashed border-slate-700 rounded-lg p-8 text-center hover:border-slate-600 transition-colors">
+                  <Upload className="h-12 w-12 mx-auto mb-4 text-slate-500" />
+                  <p className="text-sm text-slate-400 mb-2">
+                    Carica un file CSV o Excel
+                  </p>
                   <Button
                     variant="outline"
-                    className="flex-1 bg-slate-800/30 border-slate-700 hover:bg-slate-800 text-slate-300"
-                    disabled
-                  >
-                    <FileText className="mr-2 h-4 w-4" />
-                    Incolla una lista
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    className="flex-1 bg-slate-800/30 border-slate-700 hover:bg-slate-800 text-slate-300 relative"
+                    className="bg-slate-800/30 border-slate-700 hover:bg-slate-800 text-slate-300 relative"
                     asChild
                   >
                     <label>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Carica un file
+                      Seleziona file
                       <Input
                         type="file"
                         accept=".csv,.xlsx,.xls"
@@ -229,47 +273,47 @@ const Validate = () => {
                     </label>
                   </Button>
                 </div>
-              </div>
+              </TabsContent>
+            </Tabs>
 
-              {emails.length > 0 && (
-                <div className="bg-slate-800/30 p-4 rounded-lg border border-slate-700">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-white">Email da validare:</span>
-                    <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
-                      {emails.length} email
-                    </Badge>
-                  </div>
-                  <div className="max-h-32 overflow-y-auto space-y-1 text-sm mb-3">
-                    {emails.slice(0, 10).map((email, idx) => (
-                      <div key={idx} className="text-slate-400 font-mono text-xs">
-                        {email}
-                      </div>
-                    ))}
-                    {emails.length > 10 && (
-                      <div className="text-slate-500 italic text-xs">
-                        ... e altre {emails.length - 10} email
-                      </div>
-                    )}
-                  </div>
-                  
-                  <Button
-                    onClick={handleValidate}
-                    disabled={isValidating}
-                    className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
-                    size="lg"
-                  >
-                    {isValidating ? (
-                      "🔄 Validazione in corso..."
-                    ) : (
-                      <>
-                        <Upload className="mr-2 h-5 w-5" />
-                        Valida {emails.length} email
-                      </>
-                    )}
-                  </Button>
+            {emails.length > 0 && (
+              <div className="bg-slate-800/30 p-4 rounded-lg border border-slate-700">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium text-white">Email da validare:</span>
+                  <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
+                    {emails.length} email
+                  </Badge>
                 </div>
-              )}
-            </div>
+                <div className="max-h-32 overflow-y-auto space-y-1 text-sm mb-3">
+                  {emails.slice(0, 10).map((email, idx) => (
+                    <div key={idx} className="text-slate-400 font-mono text-xs">
+                      {email}
+                    </div>
+                  ))}
+                  {emails.length > 10 && (
+                    <div className="text-slate-500 italic text-xs">
+                      ... e altre {emails.length - 10} email
+                    </div>
+                  )}
+                </div>
+                
+                <Button
+                  onClick={handleValidate}
+                  disabled={isValidating}
+                  className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+                  size="lg"
+                >
+                  {isValidating ? (
+                    "🔄 Validazione in corso..."
+                  ) : (
+                    <>
+                      <Upload className="mr-2 h-5 w-5" />
+                      Valida {emails.length} email
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
         </Card>
 
