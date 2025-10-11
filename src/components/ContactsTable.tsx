@@ -1,7 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Phone, Globe, Building } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Mail, Phone, Globe, Building, Download } from "lucide-react";
+import * as XLSX from 'xlsx';
 
 interface Contact {
   id: string;
@@ -19,6 +21,23 @@ interface ContactsTableProps {
 }
 
 export const ContactsTable = ({ contacts, isLoading }: ContactsTableProps) => {
+  const exportToExcel = () => {
+    const dataToExport = contacts.map(contact => ({
+      Nome: contact.name || '',
+      Organizzazione: contact.organization || '',
+      Email: contact.email || '',
+      Telefono: contact.phone || '',
+      Website: contact.website || '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Contatti");
+    
+    const timestamp = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `contatti-${timestamp}.xlsx`);
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -56,8 +75,16 @@ export const ContactsTable = ({ contacts, isLoading }: ContactsTableProps) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Contatti Trovati ({contacts.length})</CardTitle>
-        <CardDescription>I contatti estratti dalla tua ricerca</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Contatti Trovati ({contacts.length})</CardTitle>
+            <CardDescription>I contatti estratti dalla tua ricerca</CardDescription>
+          </div>
+          <Button onClick={exportToExcel} className="gap-2">
+            <Download className="h-4 w-4" />
+            Esporta Email
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
