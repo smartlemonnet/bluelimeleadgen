@@ -136,21 +136,22 @@ serve(async (req) => {
 
             const result: MailsSoResponse = await response.json();
             
-            // Save result to database
+            // Normalize outcome and persist
+            const outcome = (result as any).result ?? (result as any).status ?? 'unknown';
             const { error: resultError } = await supabaseClient
               .from('validation_results')
               .insert({
                 validation_list_id: validationList.id,
-                email: result.email,
-                result: result.result,
-                format_valid: result.isv_format,
-                domain_valid: result.isv_domain,
-                smtp_valid: result.isv_smtp,
-                catch_all: result.catch_all,
-                disposable: result.disposable,
-                free_email: result.free_email,
-                reason: result.reason,
-                deliverable: result.result === 'deliverable',
+                email: email, // use requested email, API may not echo it back
+                result: outcome,
+                format_valid: (result as any).isv_format ?? (result as any).format_valid ?? null,
+                domain_valid: (result as any).isv_domain ?? (result as any).domain_valid ?? null,
+                smtp_valid: (result as any).isv_smtp ?? (result as any).smtp_valid ?? null,
+                catch_all: (result as any).catch_all ?? null,
+                disposable: (result as any).disposable ?? null,
+                free_email: (result as any).free_email ?? null,
+                reason: (result as any).reason ?? null,
+                deliverable: outcome === 'deliverable',
                 full_response: result as any
               });
 
@@ -159,7 +160,7 @@ serve(async (req) => {
             }
 
             // Update counters
-            switch (result.result) {
+            switch (outcome) {
               case 'deliverable':
                 deliverableCount++;
                 break;
@@ -169,7 +170,7 @@ serve(async (req) => {
               case 'risky':
                 riskyCount++;
                 break;
-              case 'unknown':
+              default:
                 unknownCount++;
                 break;
             }
