@@ -258,6 +258,7 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
     // Pass the FULL query to backend
     const searchParams = {
       query: queryToSend,
+      location: location || undefined,
       emailProviders,
       websites,
       targetNames,
