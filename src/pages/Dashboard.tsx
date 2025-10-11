@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Mail, ArrowLeft, Zap, LogOut } from "lucide-react";
+import { Search, Mail, ArrowLeft, Zap, LogOut, CheckCircle } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -74,7 +74,7 @@ const Dashboard = () => {
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <span className="text-secondary">→</span> Azioni Rapide
               </h2>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-3">
                 <Button 
                   onClick={() => navigate('/')}
                   size="lg"
@@ -90,6 +90,17 @@ const Dashboard = () => {
                 >
                   <Zap className="mr-3 h-6 w-6" />
                   Batch Manager
+                </Button>
+                <Button 
+                  onClick={() => navigate('/validate')}
+                  size="lg"
+                  className="h-24 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-lg font-semibold relative overflow-hidden"
+                >
+                  <div className="absolute top-2 right-2">
+                    <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">∞ Unlimited</span>
+                  </div>
+                  <CheckCircle className="mr-3 h-6 w-6" />
+                  Validazione Email
                 </Button>
               </div>
             </div>
