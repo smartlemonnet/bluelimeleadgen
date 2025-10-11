@@ -134,25 +134,40 @@ serve(async (req) => {
               throw new Error(`API returned ${response.status}`);
             }
 
-            const result: MailsSoResponse = await response.json();
+            const raw = await response.json();
             
-            // Normalize outcome and persist
-            const outcome = (result as any).result ?? (result as any).status ?? 'unknown';
+            // Support both flat and { data: {...} } response shapes
+            const payload = (raw && typeof raw === 'object' && 'data' in raw && (raw as any).data)
+              ? (raw as any).data
+              : raw;
+            
+            // Normalize outcome and key fields from the payload
+            const outcome: string = payload?.result ?? payload?.status ?? 'unknown';
+            const format_valid = payload?.isv_format ?? payload?.format_valid ?? null;
+            const domain_valid = payload?.isv_domain ?? payload?.domain_valid ?? null;
+            const smtp_valid = payload?.isv_smtp ?? payload?.smtp_valid ?? null;
+            const free_email = payload?.is_free ?? payload?.free_email ?? null;
+            const disposable = payload?.is_disposable ?? payload?.disposable ?? null;
+            const catch_all = typeof payload?.catch_all === 'boolean'
+              ? payload.catch_all
+              : (typeof payload?.isv_nocatchall === 'boolean' ? !payload.isv_nocatchall : null);
+            const deliverable = outcome === 'deliverable';
+
             const { error: resultError } = await supabaseClient
               .from('validation_results')
               .insert({
                 validation_list_id: validationList.id,
                 email: email, // use requested email, API may not echo it back
                 result: outcome,
-                format_valid: (result as any).isv_format ?? (result as any).format_valid ?? null,
-                domain_valid: (result as any).isv_domain ?? (result as any).domain_valid ?? null,
-                smtp_valid: (result as any).isv_smtp ?? (result as any).smtp_valid ?? null,
-                catch_all: (result as any).catch_all ?? null,
-                disposable: (result as any).disposable ?? null,
-                free_email: (result as any).free_email ?? null,
-                reason: (result as any).reason ?? null,
-                deliverable: outcome === 'deliverable',
-                full_response: result as any
+                format_valid,
+                domain_valid,
+                smtp_valid,
+                catch_all,
+                disposable,
+                free_email,
+                reason: payload?.reason ?? null,
+                deliverable,
+                full_response: raw as any
               });
 
             if (resultError) {
