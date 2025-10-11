@@ -52,23 +52,31 @@ interface ValidationResult {
 const COLORS = {
   deliverable: {
     start: "#10b981",
-    end: "#06d6a0",
-    glow: "rgba(16, 185, 129, 0.5)",
+    end: "#34d399",
+    middle: "#059669",
+    glow: "rgba(16, 185, 129, 0.6)",
+    shadow: "0 0 40px rgba(16, 185, 129, 0.4)",
   },
   undeliverable: {
     start: "#ef4444",
-    end: "#f72585",
-    glow: "rgba(247, 37, 133, 0.5)",
+    end: "#f87171",
+    middle: "#dc2626",
+    glow: "rgba(239, 68, 68, 0.6)",
+    shadow: "0 0 40px rgba(239, 68, 68, 0.4)",
   },
   risky: {
     start: "#f59e0b",
     end: "#fbbf24",
-    glow: "rgba(251, 191, 36, 0.5)",
+    middle: "#d97706",
+    glow: "rgba(251, 191, 36, 0.6)",
+    shadow: "0 0 40px rgba(251, 191, 36, 0.4)",
   },
   unknown: {
-    start: "#6366f1",
-    end: "#8b5cf6",
-    glow: "rgba(139, 92, 246, 0.5)",
+    start: "#8b5cf6",
+    end: "#a78bfa",
+    middle: "#7c3aed",
+    glow: "rgba(139, 92, 246, 0.6)",
+    shadow: "0 0 40px rgba(139, 92, 246, 0.4)",
   },
 };
 
@@ -215,21 +223,21 @@ const ValidationResults = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
       <div className="container mx-auto p-6 max-w-7xl">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-8 flex items-center justify-between">
           <div>
             <Link to="/validate">
               <Button
                 variant="ghost"
                 size="sm"
-                className="mb-2 text-slate-400 hover:text-slate-200"
+                className="mb-3 text-slate-400 hover:text-slate-200"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Torna alle liste
               </Button>
             </Link>
-            <h1 className="text-2xl font-bold text-white">{list.name}</h1>
+            <h1 className="text-4xl font-bold text-white mb-1">{list.name}</h1>
             <p className="text-sm text-slate-400">
-              Creata {new Date(list.created_at).toLocaleDateString("it-IT", {
+              Creata il {new Date(list.created_at).toLocaleDateString("it-IT", {
                 day: "2-digit",
                 month: "2-digit",
                 year: "numeric",
@@ -239,18 +247,18 @@ const ValidationResults = () => {
             </p>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <Button
               variant="outline"
               onClick={() => exportResults(false)}
-              className="bg-slate-800/30 border-slate-700 hover:bg-slate-800 text-slate-300"
+              className="bg-slate-800/50 border-slate-600 hover:bg-slate-700 text-slate-200"
             >
               <FileText className="mr-2 h-4 w-4" />
               File originale
             </Button>
             <Button
               onClick={() => exportResults(true)}
-              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-lg shadow-emerald-500/30"
             >
               <Download className="mr-2 h-4 w-4" />
               Scarica risultati
@@ -258,98 +266,134 @@ const ValidationResults = () => {
           </div>
         </div>
 
-        {/* List Summary - MAIN CHART */}
-        <Card className="p-8 mb-6 bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-800/50 border-slate-700 shadow-2xl">
-          <h2 className="text-2xl font-semibold mb-8 text-white">Riepilogo Lista</h2>
+        {/* RIEPILOGO LISTA - MAIN SPECTACULAR CHART */}
+        <Card className="p-10 mb-8 bg-gradient-to-br from-slate-900 via-slate-900/98 to-slate-800/80 border-slate-700/50 shadow-2xl backdrop-blur-sm">
+          <h2 className="text-3xl font-bold mb-10 text-white text-center">Riepilogo Lista</h2>
           
           <div className="relative">
-            {/* Massive Pie Chart */}
-            <div className="flex items-center justify-center mb-8" style={{ filter: 'drop-shadow(0 0 40px rgba(59, 130, 246, 0.3))' }}>
-              <ResponsiveContainer width="100%" height={500}>
+            {/* MASSIVE GLOWING PIE CHART */}
+            <div 
+              className="flex items-center justify-center mb-12 relative" 
+              style={{ 
+                filter: 'drop-shadow(0 0 60px rgba(59, 130, 246, 0.4))',
+              }}
+            >
+              {/* Glow effect background */}
+              <div className="absolute inset-0 bg-gradient-radial from-blue-500/10 via-transparent to-transparent blur-3xl" />
+              
+              <ResponsiveContainer width="100%" height={600}>
                 <PieChart>
                   <defs>
-                    <radialGradient id="deliverableGradient">
-                      <stop offset="0%" stopColor={COLORS.deliverable.end} />
-                      <stop offset="100%" stopColor={COLORS.deliverable.start} />
-                    </radialGradient>
-                    <radialGradient id="undeliverableGradient">
-                      <stop offset="0%" stopColor={COLORS.undeliverable.end} />
-                      <stop offset="100%" stopColor={COLORS.undeliverable.start} />
-                    </radialGradient>
-                    <radialGradient id="riskyGradient">
-                      <stop offset="0%" stopColor={COLORS.risky.end} />
-                      <stop offset="100%" stopColor={COLORS.risky.start} />
-                    </radialGradient>
-                    <radialGradient id="unknownGradient">
-                      <stop offset="0%" stopColor={COLORS.unknown.end} />
-                      <stop offset="100%" stopColor={COLORS.unknown.start} />
-                    </radialGradient>
+                    {Object.entries(COLORS).map(([key, colors]) => (
+                      <radialGradient key={key} id={`${key}Gradient`}>
+                        <stop offset="0%" stopColor={colors.end} stopOpacity={1} />
+                        <stop offset="50%" stopColor={colors.middle} stopOpacity={0.95} />
+                        <stop offset="100%" stopColor={colors.start} stopOpacity={0.9} />
+                      </radialGradient>
+                    ))}
                   </defs>
                   <Pie
                     data={pieData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={120}
-                    outerRadius={200}
-                    paddingAngle={3}
+                    innerRadius={140}
+                    outerRadius={240}
+                    paddingAngle={4}
                     dataKey="value"
-                    strokeWidth={0}
+                    strokeWidth={2}
+                    stroke="rgba(255,255,255,0.1)"
                   >
                     {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.gradient} />
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={entry.gradient}
+                        style={{
+                          filter: `drop-shadow(0 0 20px ${COLORS[entry.name.toLowerCase() as keyof typeof COLORS].glow})`
+                        }}
+                      />
                     ))}
                   </Pie>
                   <Tooltip 
                     contentStyle={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                      border: '1px solid rgba(148, 163, 184, 0.2)',
-                      borderRadius: '8px',
-                      color: 'white'
+                      backgroundColor: 'rgba(15, 23, 42, 0.98)',
+                      border: '1px solid rgba(148, 163, 184, 0.3)',
+                      borderRadius: '12px',
+                      color: 'white',
+                      padding: '12px 16px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
                     }}
                   />
                 </PieChart>
               </ResponsiveContainer>
               
-              {/* Center Label */}
+              {/* MASSIVE Center Label with glow */}
               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                <div className="text-6xl font-bold text-white mb-1" style={{ textShadow: '0 0 20px rgba(255,255,255,0.5)' }}>
+                <div 
+                  className="text-8xl font-black text-white mb-2" 
+                  style={{ 
+                    textShadow: '0 0 40px rgba(255,255,255,0.8), 0 0 80px rgba(59, 130, 246, 0.5)',
+                    background: 'linear-gradient(135deg, #fff, #60a5fa)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text'
+                  }}
+                >
                   {list.total_emails.toLocaleString()}
                 </div>
-                <div className="text-sm text-slate-400 uppercase tracking-wider">Total Emails</div>
+                <div className="text-lg text-slate-300 uppercase tracking-widest font-bold">Total Emails</div>
               </div>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {pieData.map((item) => (
-                <div
-                  key={item.name}
-                  className="p-5 rounded-xl bg-slate-800/40 border border-slate-700/50 backdrop-blur-sm hover:bg-slate-800/60 transition-all"
-                  style={{
-                    boxShadow: `0 0 20px ${item.color}15`
-                  }}
-                >
-                  <div className="flex items-center gap-2 mb-3">
-                    <div
-                      className="w-4 h-4 rounded-full"
-                      style={{
-                        background: `linear-gradient(135deg, ${COLORS[item.name.toLowerCase() as keyof typeof COLORS].start}, ${COLORS[item.name.toLowerCase() as keyof typeof COLORS].end})`,
-                        boxShadow: `0 0 12px ${COLORS[item.name.toLowerCase() as keyof typeof COLORS].glow}`
-                      }}
-                    />
-                    <span className="font-semibold text-white text-sm">{item.name}</span>
+            {/* MODERN Stats Grid with aggressive colors */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+              {pieData.map((item) => {
+                const colorKey = item.name.toLowerCase() as keyof typeof COLORS;
+                return (
+                  <div
+                    key={item.name}
+                    className="group p-6 rounded-2xl border border-slate-700/40 backdrop-blur-md transition-all duration-300 hover:scale-105 hover:border-opacity-60"
+                    style={{
+                      background: `linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.6))`,
+                      boxShadow: `0 0 30px ${COLORS[colorKey].glow}, inset 0 1px 0 rgba(255,255,255,0.05)`,
+                      borderColor: COLORS[colorKey].start
+                    }}
+                  >
+                    <div className="flex items-center gap-3 mb-4">
+                      <div
+                        className="w-5 h-5 rounded-full animate-pulse"
+                        style={{
+                          background: `linear-gradient(135deg, ${COLORS[colorKey].start}, ${COLORS[colorKey].end})`,
+                          boxShadow: COLORS[colorKey].shadow
+                        }}
+                      />
+                      <span className="font-bold text-white text-base tracking-wide">{item.name}</span>
+                    </div>
+                    <div className="flex items-baseline gap-3 mb-3">
+                      <span 
+                        className="text-5xl font-black"
+                        style={{
+                          background: `linear-gradient(135deg, ${COLORS[colorKey].end}, ${COLORS[colorKey].start})`,
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          backgroundClip: 'text',
+                          textShadow: `0 0 30px ${COLORS[colorKey].glow}`
+                        }}
+                      >
+                        {item.value.toLocaleString()}
+                      </span>
+                      <span 
+                        className="text-2xl font-bold"
+                        style={{ color: COLORS[colorKey].end }}
+                      >
+                        {calculatePercentage(item.value)}%
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed">{item.description}</p>
                   </div>
-                  <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-3xl font-bold text-white">
-                      {item.value.toLocaleString()}
-                    </span>
-                    <span className="text-lg font-semibold" style={{ color: item.color }}>
-                      {calculatePercentage(item.value)}%
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-400 leading-relaxed">{item.description}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </Card>
