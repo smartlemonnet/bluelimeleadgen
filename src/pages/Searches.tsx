@@ -34,12 +34,28 @@ const Searches = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [searchesRes, contactsRes] = await Promise.all([
-        supabase.from('searches').select('*').order('created_at', { ascending: false }),
-        supabase.from('contacts').select('id, search_id')
-      ]);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error("Utente non autenticato");
+      }
+
+      // First get all user's searches
+      const searchesRes = await supabase
+        .from('searches')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
       if (searchesRes.error) throw searchesRes.error;
+
+      const searchIds = (searchesRes.data || []).map(s => s.id);
+
+      // Then get contacts for those searches
+      const contactsRes = searchIds.length > 0 
+        ? await supabase.from('contacts').select('id, search_id').in('search_id', searchIds)
+        : { data: [], error: null };
+
       if (contactsRes.error) throw contactsRes.error;
 
       setSearches(searchesRes.data || []);
