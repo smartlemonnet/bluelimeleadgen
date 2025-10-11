@@ -72,11 +72,11 @@ const COLORS = {
     shadow: "0 0 40px rgba(251, 191, 36, 0.4)",
   },
   unknown: {
-    start: "#8b5cf6",
-    end: "#a78bfa",
+    start: "#9333ea",
+    end: "#c084fc",
     middle: "#7c3aed",
-    glow: "rgba(139, 92, 246, 0.6)",
-    shadow: "0 0 40px rgba(139, 92, 246, 0.4)",
+    glow: "rgba(147, 51, 234, 0.6)",
+    shadow: "0 0 40px rgba(147, 51, 234, 0.4)",
   },
 };
 
@@ -314,15 +314,41 @@ const ValidationResults = () => {
                     ))}
                   </Pie>
                   <Tooltip 
-                    contentStyle={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.98)',
-                      border: '1px solid rgba(148, 163, 184, 0.3)',
-                      borderRadius: '12px',
-                      color: 'white',
-                      padding: '12px 16px',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0];
+                        const itemName = String(data.name || '');
+                        const colorKey = itemName.toLowerCase() as keyof typeof COLORS;
+                        const itemValue = typeof data.value === 'number' ? data.value : 0;
+                        return (
+                          <div 
+                            className="p-4 rounded-xl border-2 backdrop-blur-md shadow-2xl"
+                            style={{
+                              backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                              borderColor: COLORS[colorKey]?.start || '#fff',
+                              boxShadow: `0 0 30px ${COLORS[colorKey]?.glow || 'rgba(255,255,255,0.3)'}`
+                            }}
+                          >
+                            <p className="text-sm font-semibold mb-2 text-white">
+                              {itemName}
+                            </p>
+                            <p 
+                              className="text-2xl font-black"
+                              style={{
+                                background: COLORS[colorKey] 
+                                  ? `linear-gradient(135deg, ${COLORS[colorKey].end}, ${COLORS[colorKey].start})`
+                                  : '#fff',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                backgroundClip: 'text'
+                              }}
+                            >
+                              {itemValue} ({((itemValue / list.total_emails) * 100).toFixed(1)}%)
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
                     }}
                   />
                 </PieChart>
