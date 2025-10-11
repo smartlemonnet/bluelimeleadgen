@@ -32,13 +32,31 @@ const Contacts = () => {
   const loadContacts = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('contacts')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Fetch all contacts with pagination to bypass the 1000 row limit
+      let allContacts: Contact[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
-      setContacts(data || []);
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('contacts')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          allContacts = [...allContacts, ...data];
+          from += pageSize;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setContacts(allContacts);
     } catch (error: any) {
       toast({
         title: "Errore",
