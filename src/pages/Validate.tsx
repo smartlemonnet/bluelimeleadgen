@@ -2,14 +2,12 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, Mail, ArrowLeft, Download } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Upload, ArrowLeft, Search, FileText } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
-import EmailValidationChart from "@/components/EmailValidationChart";
-import EmailResultsList from "@/components/EmailResultsList";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -18,7 +16,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 
 interface ValidationList {
   id: string;
@@ -49,12 +46,12 @@ interface ValidationResult {
 }
 
 const Validate = () => {
+  const navigate = useNavigate();
   const [emails, setEmails] = useState<string[]>([]);
   const [listName, setListName] = useState("");
   const [isValidating, setIsValidating] = useState(false);
   const [validationHistory, setValidationHistory] = useState<ValidationList[]>([]);
-  const [selectedList, setSelectedList] = useState<ValidationList | null>(null);
-  const [results, setResults] = useState<ValidationResult[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     loadValidationHistory();
@@ -64,8 +61,7 @@ const Validate = () => {
     const { data, error } = await supabase
       .from("validation_lists")
       .select("*")
-      .order("created_at", { ascending: false })
-      .limit(10);
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error("Error loading history:", error);
@@ -73,30 +69,6 @@ const Validate = () => {
     }
 
     setValidationHistory(data || []);
-  };
-
-  const loadValidationResults = async (listId: string) => {
-    const { data: listData } = await supabase
-      .from("validation_lists")
-      .select("*")
-      .eq("id", listId)
-      .single();
-
-    if (listData) {
-      setSelectedList(listData);
-    }
-
-    const { data, error } = await supabase
-      .from("validation_results")
-      .select("*")
-      .eq("validation_list_id", listId);
-
-    if (error) {
-      console.error("Error loading results:", error);
-      return;
-    }
-
-    setResults(data || []);
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -171,8 +143,8 @@ const Validate = () => {
         description: `${data.summary.deliverable} email valide su ${data.summary.total}`,
       });
 
-      await loadValidationResults(data.list_id);
       await loadValidationHistory();
+      navigate(`/validate/${data.list_id}`);
       setEmails([]);
       setListName("");
     } catch (error: any) {
@@ -186,113 +158,104 @@ const Validate = () => {
     }
   };
 
-  const exportResults = (onlyValid: boolean) => {
-    const dataToExport = onlyValid
-      ? results.filter((r) => r.deliverable)
-      : results;
+  const filteredLists = validationHistory.filter((list) =>
+    list.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-    const worksheet = XLSX.utils.json_to_sheet(
-      dataToExport.map((r) => ({
-        Email: r.email,
-        Risultato: r.result,
-        "Formato Valido": r.format_valid ? "Sì" : "No",
-        "Dominio Valido": r.domain_valid ? "Sì" : "No",
-        "SMTP Valido": r.smtp_valid ? "Sì" : "No",
-        "Catch-All": r.catch_all ? "Sì" : "No",
-        Temporanea: r.disposable ? "Sì" : "No",
-        Gratuita: r.free_email ? "Sì" : "No",
-        Motivo: r.reason || "",
-      }))
-    );
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Risultati");
-    XLSX.writeFile(
-      workbook,
-      `validazione_${onlyValid ? "valide" : "tutte"}_${new Date().getTime()}.xlsx`
-    );
-
-    toast({
-      title: "Export completato",
-      description: `${dataToExport.length} email esportate`,
-    });
+  const getStatusBadge = (status: string) => {
+    if (status === "completed") {
+      return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Completed</Badge>;
+    }
+    return <Badge variant="secondary">{status}</Badge>;
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
       <div className="container mx-auto p-6 max-w-7xl">
-        <div className="mb-6">
+        {/* Header */}
+        <div className="mb-8">
           <Link to="/dashboard">
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="mb-4 text-slate-400 hover:text-slate-200">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Dashboard
             </Button>
           </Link>
-        </div>
-
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Validazione Email</h1>
-          <p className="text-muted-foreground">
-            Validazioni illimitate con mails.so • Dati dettagliati e precisi
+          <h1 className="text-4xl font-bold mb-2 text-white">Validazione Lista</h1>
+          <p className="text-slate-400">
+            Valida più indirizzi email contemporaneamente ed esporta i risultati • Validazioni illimitate
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* BEFORE - Left Side */}
-          <Card className="p-6">
-            <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
-              <Mail className="h-6 w-6" />
-              Prima della Validazione
-            </h2>
-
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="listName">Nome Lista</Label>
+        {/* Pick a Source */}
+        <Card className="p-6 mb-6 bg-slate-900/50 border-slate-800">
+          <h2 className="text-lg font-semibold mb-4 text-white">Scegli una Sorgente</h2>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-3">
                 <Input
-                  id="listName"
-                  placeholder="Es: Lista clienti Q4 2024"
+                  placeholder="Nome lista (es: Lista clienti Q4 2024)"
                   value={listName}
                   onChange={(e) => setListName(e.target.value)}
                   disabled={isValidating}
+                  className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500"
                 />
-              </div>
-
-              <div>
-                <Label htmlFor="file">Carica File CSV/Excel</Label>
-                <Input
-                  id="file"
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  onChange={handleFileUpload}
-                  disabled={isValidating}
-                />
+                
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    className="flex-1 bg-slate-800/30 border-slate-700 hover:bg-slate-800 text-slate-300"
+                    disabled
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    Incolla una lista
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    className="flex-1 bg-slate-800/30 border-slate-700 hover:bg-slate-800 text-slate-300 relative"
+                    asChild
+                  >
+                    <label>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Carica un file
+                      <Input
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        onChange={handleFileUpload}
+                        disabled={isValidating}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                    </label>
+                  </Button>
+                </div>
               </div>
 
               {emails.length > 0 && (
-                <>
-                  <div className="bg-muted p-4 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">Email da validare:</span>
-                      <Badge variant="secondary">{emails.length}</Badge>
-                    </div>
-                    <div className="max-h-40 overflow-y-auto space-y-1 text-sm">
-                      {emails.slice(0, 20).map((email, idx) => (
-                        <div key={idx} className="text-muted-foreground">
-                          {email}
-                        </div>
-                      ))}
-                      {emails.length > 20 && (
-                        <div className="text-muted-foreground italic">
-                          ... e altre {emails.length - 20} email
-                        </div>
-                      )}
-                    </div>
+                <div className="bg-slate-800/30 p-4 rounded-lg border border-slate-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-white">Email da validare:</span>
+                    <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
+                      {emails.length} email
+                    </Badge>
                   </div>
-
+                  <div className="max-h-32 overflow-y-auto space-y-1 text-sm mb-3">
+                    {emails.slice(0, 10).map((email, idx) => (
+                      <div key={idx} className="text-slate-400 font-mono text-xs">
+                        {email}
+                      </div>
+                    ))}
+                    {emails.length > 10 && (
+                      <div className="text-slate-500 italic text-xs">
+                        ... e altre {emails.length - 10} email
+                      </div>
+                    )}
+                  </div>
+                  
                   <Button
                     onClick={handleValidate}
                     disabled={isValidating}
-                    className="w-full"
+                    className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
                     size="lg"
                   >
                     {isValidating ? (
@@ -300,115 +263,78 @@ const Validate = () => {
                     ) : (
                       <>
                         <Upload className="mr-2 h-5 w-5" />
-                        🔍 VALIDA TUTTE ({emails.length} email)
+                        Valida {emails.length} email
                       </>
                     )}
                   </Button>
-                </>
+                </div>
               )}
             </div>
-          </Card>
+          </div>
+        </Card>
 
-          {/* AFTER - Right Side */}
-          <Card className="p-6">
-            <h2 className="text-2xl font-semibold mb-4">Dopo la Validazione</h2>
+        {/* My Lists */}
+        <Card className="p-6 bg-slate-900/50 border-slate-800">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white">
+              Le Mie Liste ({filteredLists.length})
+            </h2>
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
+              <Input
+                placeholder="Cerca liste..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500"
+              />
+            </div>
+          </div>
 
-            {selectedList && results.length > 0 ? (
-              <div className="space-y-6">
-                <EmailValidationChart validationList={selectedList} />
-
-                <div className="flex gap-2">
+          {filteredLists.length > 0 ? (
+            <div className="space-y-3">
+              {filteredLists.map((list) => (
+                <div
+                  key={list.id}
+                  className="flex items-center justify-between p-4 rounded-lg bg-slate-800/30 border border-slate-700 hover:border-slate-600 transition-colors"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h3 className="font-semibold text-white">{list.name}</h3>
+                      {getStatusBadge(list.status)}
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-slate-400">
+                      <span>
+                        Creata {new Date(list.created_at).toLocaleDateString("it-IT", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })}
+                      </span>
+                      <span className="text-slate-500">•</span>
+                      <span>{list.total_emails} email</span>
+                    </div>
+                  </div>
+                  
                   <Button
-                    onClick={() => exportResults(true)}
-                    variant="default"
-                    className="flex-1"
+                    size="sm"
+                    onClick={() => navigate(`/validate/${list.id}`)}
+                    className="bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-600/30"
                   >
-                    <Download className="mr-2 h-4 w-4" />
-                    Esporta SOLO Valide
-                  </Button>
-                  <Button
-                    onClick={() => exportResults(false)}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Esporta Tutte
+                    <Search className="mr-2 h-4 w-4" />
+                    Vedi risultati
                   </Button>
                 </div>
-
-                <EmailResultsList results={results} />
-              </div>
-            ) : (
-              <div className="text-center text-muted-foreground py-12">
-                <Mail className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                <p>Carica e valida le email per vedere i risultati qui</p>
-              </div>
-            )}
-          </Card>
-        </div>
-
-        {/* Validation History */}
-        {validationHistory.length > 0 && (
-          <Card className="p-6">
-            <h2 className="text-2xl font-semibold mb-4">Storico Validazioni</h2>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Totale</TableHead>
-                  <TableHead>Valide</TableHead>
-                  <TableHead>Rischiose</TableHead>
-                  <TableHead>Invalide</TableHead>
-                  <TableHead>Stato</TableHead>
-                  <TableHead>Azioni</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {validationHistory.map((list) => (
-                  <TableRow key={list.id}>
-                    <TableCell className="font-medium">{list.name}</TableCell>
-                    <TableCell>
-                      {new Date(list.created_at).toLocaleDateString("it-IT")}
-                    </TableCell>
-                    <TableCell>{list.total_emails}</TableCell>
-                    <TableCell>
-                      <Badge className="bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20">
-                        {list.deliverable_count}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className="bg-amber-500/10 text-amber-700 hover:bg-amber-500/20">
-                        {list.risky_count}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className="bg-red-500/10 text-red-700 hover:bg-red-500/20">
-                        {list.undeliverable_count}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={list.status === "completed" ? "default" : "secondary"}
-                      >
-                        {list.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => loadValidationResults(list.id)}
-                      >
-                        Visualizza
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Card>
-        )}
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-slate-500">
+              <FileText className="h-16 w-16 mx-auto mb-4 opacity-20" />
+              <p>Nessuna lista trovata</p>
+            </div>
+          )}
+        </Card>
       </div>
     </div>
   );
