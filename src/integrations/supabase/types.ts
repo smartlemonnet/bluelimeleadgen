@@ -229,6 +229,110 @@ export type Database = {
         }
         Relationships: []
       }
+      validation_lists: {
+        Row: {
+          created_at: string
+          deliverable_count: number
+          id: string
+          name: string
+          processed_emails: number
+          risky_count: number
+          status: string
+          total_emails: number
+          undeliverable_count: number
+          unknown_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deliverable_count?: number
+          id?: string
+          name: string
+          processed_emails?: number
+          risky_count?: number
+          status?: string
+          total_emails?: number
+          undeliverable_count?: number
+          unknown_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deliverable_count?: number
+          id?: string
+          name?: string
+          processed_emails?: number
+          risky_count?: number
+          status?: string
+          total_emails?: number
+          undeliverable_count?: number
+          unknown_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      validation_results: {
+        Row: {
+          catch_all: boolean | null
+          created_at: string
+          deliverable: boolean | null
+          disposable: boolean | null
+          domain_valid: boolean | null
+          email: string
+          format_valid: boolean | null
+          free_email: boolean | null
+          full_response: Json | null
+          id: string
+          reason: string | null
+          result: string | null
+          smtp_valid: boolean | null
+          validation_list_id: string
+        }
+        Insert: {
+          catch_all?: boolean | null
+          created_at?: string
+          deliverable?: boolean | null
+          disposable?: boolean | null
+          domain_valid?: boolean | null
+          email: string
+          format_valid?: boolean | null
+          free_email?: boolean | null
+          full_response?: Json | null
+          id?: string
+          reason?: string | null
+          result?: string | null
+          smtp_valid?: boolean | null
+          validation_list_id: string
+        }
+        Update: {
+          catch_all?: boolean | null
+          created_at?: string
+          deliverable?: boolean | null
+          disposable?: boolean | null
+          domain_valid?: boolean | null
+          email?: string
+          format_valid?: boolean | null
+          free_email?: boolean | null
+          full_response?: Json | null
+          id?: string
+          reason?: string | null
+          result?: string | null
+          smtp_valid?: boolean | null
+          validation_list_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validation_results_validation_list_id_fkey"
+            columns: ["validation_list_id"]
+            isOneToOne: false
+            referencedRelation: "validation_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
