@@ -32,8 +32,15 @@ serve(async (req) => {
     console.log('Provided query from frontend:', query);
     console.log('Search params:', { numPages, emailProviders, websites, targetNames, providedUserId, location });
 
-    // Use query as-is from frontend (it's already complete)
-    const searchQuery = query;
+    // Build enhanced search query with target names for better results
+    let searchQuery = query;
+    
+    // Add target names to query if specified (improves search relevance)
+    if (targetNames && targetNames.length > 0) {
+      const namesQuery = targetNames.slice(0, 5).map((n: string) => `"${n.toLowerCase()}"`).join(' OR ');
+      searchQuery = `${query} (${namesQuery})`;
+      console.log(`Enhanced query with names: ${searchQuery}`);
+    }
     
     console.log('Final search query sent to Serper:', searchQuery);
 
@@ -234,15 +241,19 @@ async function extractContactsFromResults(
       console.log(`Skipping HTML fetch for social media: ${link} - using snippet only`);
     }
 
-    // Extract emails with improved regex - exclude common file extensions
-    const emailRegex = /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g;
+    // Extract emails with improved regex - include accented characters
+    const emailRegex = /\b[A-Za-z0-9àèéìòùÀÈÉÌÒÙ][\w\.\-àèéìòùÀÈÉÌÒÙ]*@[A-Za-z0-9][\w\.\-]*\.[A-Za-z]{2,}\b/gi;
     const rawEmails = text.match(emailRegex) || [];
     
-    // Filter out emails that are actually file paths
+    // Filter out invalid emails (file paths, placeholders, etc)
     const invalidExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.woff', '.ttf', '.eot', '.ico'];
     const emails = rawEmails.filter(email => {
       const lowerEmail = email.toLowerCase();
-      return !invalidExtensions.some(ext => lowerEmail.endsWith(ext));
+      // Skip file extensions
+      if (invalidExtensions.some(ext => lowerEmail.endsWith(ext))) return false;
+      // Skip common placeholder/test emails
+      if (lowerEmail.includes('example') || lowerEmail.includes('test@') || lowerEmail.includes('noreply')) return false;
+      return true;
     });
     
     if (htmlFetched && emails.length > 0) {
@@ -271,21 +282,24 @@ async function extractContactsFromResults(
 
       const extractedName = extractName(title, snippet);
       
-      // Apply name filter if specified - CHECK ONLY IN EMAIL ADDRESS
-      if (targetNames.length > 0) {
-        const emailLower = email.toLowerCase();
-        
-        const nameInEmail = targetNames.some(targetName => {
-          const targetLower = targetName.toLowerCase().trim();
-          // Check ONLY if name appears in the EMAIL ADDRESS itself
-          return emailLower.includes(targetLower);
-        });
-        
-        if (!nameInEmail) {
-          console.log(`Skipping ${email} - name not found in email address`);
-          continue;
-        }
+    // Apply name filter if specified - CHECK ONLY IN EMAIL ADDRESS
+    if (targetNames.length > 0) {
+      const emailLower = email.toLowerCase();
+      const emailLocalPart = emailLower.split('@')[0]; // Get part before @
+      
+      const nameInEmail = targetNames.some(targetName => {
+        const targetLower = targetName.toLowerCase().trim();
+        // Check if name appears in email address (local part or full email)
+        // Support formats: name@, name.surname@, surname.name@, namesurname@
+        return emailLocalPart.includes(targetLower) || emailLower.includes(targetLower);
+      });
+      
+      if (!nameInEmail) {
+        console.log(`Skipping ${email} - target name not found (checked: ${targetNames.slice(0, 3).join(', ')}...)`);
+        continue;
       }
+      console.log(`✓ Keeping ${email} - contains target name`);
+    }
 
       const contact = {
         email: email.toLowerCase(),
@@ -316,7 +330,12 @@ async function extractContactsFromResults(
     }
   }
 
-  console.log(`Extraction stats: ${fetchedPages} pages fetched, ${emailsFoundInHTML} emails found in HTML content`);
+  console.log(`\n=== EXTRACTION SUMMARY ===`);
+  console.log(`Pages fetched: ${fetchedPages}`);
+  console.log(`Emails found in HTML: ${emailsFoundInHTML}`);
+  console.log(`Contacts after filtering: ${contacts.length}`);
+  console.log(`Applied filters: ${targetNames.length > 0 ? `names (${targetNames.slice(0, 3).join(', ')}...)` : 'none'}`);
+  console.log(`========================\n`);
   return contacts;
 }
 
