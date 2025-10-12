@@ -272,28 +272,37 @@ async function extractContactsFromResults(
       // Apply name filter if specified (more flexible)
       if (targetNames.length > 0) {
         const textLower = text.toLowerCase();
+        const emailLower = email.toLowerCase();
+        
         const nameMatches = targetNames.some(targetName => {
           const targetLower = targetName.toLowerCase().trim();
           
-          // Check extracted name first
+          // PRIORITY 1: Check if name appears in the EMAIL ADDRESS itself
+          // This is what we really want - emails like annarinaldi64@gmail.com
+          if (emailLower.includes(targetLower)) {
+            console.log(`✓ Found ${targetLower} in email: ${email}`);
+            return true;
+          }
+          
+          // PRIORITY 2: Check extracted name
           if (extractedName && extractedName.toLowerCase().includes(targetLower)) {
             return true;
           }
           
-          // Check in title and snippet (more visible content)
+          // PRIORITY 3: Check in title and snippet (more visible content)
           const visibleText = `${title} ${snippet}`.toLowerCase();
           if (visibleText.includes(targetLower)) {
             return true;
           }
           
-          // Only if not found in visible content, check full text (but with word boundary)
+          // PRIORITY 4: Only if not found in visible content, check full text (but with word boundary)
           // Use word boundary to avoid false matches like "MARIA" in "PRIMARIA"
           const wordBoundaryRegex = new RegExp(`\\b${targetLower}\\b`, 'i');
           return wordBoundaryRegex.test(textLower);
         });
         
         if (!nameMatches) {
-          console.log(`Skipping ${email} - no match for target names in visible content`);
+          console.log(`Skipping ${email} - no match for target names`);
           continue;
         }
       }
