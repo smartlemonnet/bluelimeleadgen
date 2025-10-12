@@ -6,7 +6,7 @@ import { Search, Mail, ArrowLeft, Zap, LogOut, CheckCircle } from "lucide-react"
 import logo from "@/assets/logo.png";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import GlobalMap from "@/components/GlobalMap";
+
 
 const Dashboard = () => {
   const [contactsCount, setContactsCount] = useState(0);
@@ -149,13 +149,6 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Map Visualization */}
-            <div>
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <span className="text-accent">🗺️</span> Mappa Contatti
-              </h2>
-              <GlobalMap />
-            </div>
           </>
         )}
       </div>
