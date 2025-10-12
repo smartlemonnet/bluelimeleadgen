@@ -101,10 +101,17 @@ serve(async (req) => {
         serperBody.location = location + ', Italy'; // e.g., "Milano, Italy"
         serperBody.gl = 'it'; // Country code
         serperBody.hl = 'it'; // Language
-        console.log(`Using Google geo-targeting: location="${serperBody.location}", gl=it, hl=it`);
+        console.log(`\n=== A/B TEST: LOCATION PARAMETER ===`);
+        console.log(`Query: "${searchQuery}"`);
+        console.log(`Location param: "${serperBody.location}"`);
+        console.log(`gl=it, hl=it`);
       } else {
         serperBody.gl = 'it';
         serperBody.hl = 'it';
+        console.log(`\n=== A/B TEST: NO LOCATION PARAMETER ===`);
+        console.log(`Query: "${searchQuery}"`);
+        console.log(`No location param (city might be in query text)`);
+        console.log(`gl=it, hl=it`);
       }
 
       const serperResponse = await fetch('https://google.serper.dev/search', {
@@ -122,7 +129,16 @@ serve(async (req) => {
       }
 
       const serperData = await serperResponse.json();
-      console.log(`Page ${page} results:`, serperData.organic?.length || 0, 'results');
+      const resultCount = serperData.organic?.length || 0;
+      console.log(`Page ${page} results: ${resultCount} organic results`);
+      
+      // Log first 3 result URLs to verify geo-targeting
+      if (serperData.organic?.length > 0) {
+        console.log(`Sample URLs from page ${page}:`);
+        serperData.organic.slice(0, 3).forEach((r: any, i: number) => {
+          console.log(`  ${i + 1}. ${r.title?.substring(0, 50)}... - ${r.link}`);
+        });
+      }
 
       // Extract contacts from this page with filters
       const pageContacts = await extractContactsFromResults(
@@ -333,10 +349,12 @@ async function extractContactsFromResults(
   }
 
   console.log(`\n=== EXTRACTION SUMMARY ===`);
-  console.log(`Pages fetched: ${fetchedPages}`);
-  console.log(`Emails found in HTML: ${emailsFoundInHTML}`);
-  console.log(`Contacts after filtering: ${contacts.length}`);
+  console.log(`Total organic results processed: ${results.length}`);
+  console.log(`HTML pages successfully fetched: ${fetchedPages}`);
+  console.log(`Emails found in HTML content: ${emailsFoundInHTML}`);
+  console.log(`Final contacts after filtering: ${contacts.length}`);
   console.log(`Applied filters: ${targetNames.length > 0 ? `names (${targetNames.slice(0, 3).join(', ')}...)` : 'none'}`);
+  console.log(`HTML fetch rate: ${results.length > 0 ? Math.round((fetchedPages / results.length) * 100) : 0}%`);
   console.log(`========================\n`);
   return contacts;
 }
