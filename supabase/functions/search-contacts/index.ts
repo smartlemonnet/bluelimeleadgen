@@ -96,17 +96,16 @@ serve(async (req) => {
         page: page,
       };
 
-      // Add location to query text if provided (for keyword targeting)
-      let finalQuery = searchQuery;
+      // Use proper Google geolocation parameter for geo-targeting
       if (location) {
-        finalQuery = `${searchQuery} ${location}`;
+        serperBody.location = location + ', Italy'; // e.g., "Milano, Italy"
+        serperBody.gl = 'it'; // Country code
+        serperBody.hl = 'it'; // Language
+        console.log(`Using Google geo-targeting: location="${serperBody.location}", gl=it, hl=it`);
+      } else {
+        serperBody.gl = 'it';
+        serperBody.hl = 'it';
       }
-      serperBody.q = finalQuery;
-      
-      // Set geo/language targeting (always Italy)
-      serperBody.gl = 'it'; // Country: Italy
-      serperBody.hl = 'it'; // Language: Italian
-      console.log(`Search query: "${finalQuery}", geo: IT, lang: IT`);
 
       const serperResponse = await fetch('https://google.serper.dev/search', {
         method: 'POST',
