@@ -89,11 +89,13 @@ serve(async (req) => {
         page: page,
       };
 
-      // Add location if provided - use 'gl' parameter for geolocation
+      // Add location if provided
       if (location) {
+        // Add location to the query itself for better geo-targeting
+        serperBody.q = `${searchQuery} ${location}`;
         serperBody.gl = 'it'; // Italy
         serperBody.hl = 'it'; // Italian language
-        console.log(`Using location filter: gl=it, hl=it for ${location}`);
+        console.log(`Using location filter: gl=it, hl=it, added "${location}" to query`);
       }
 
       const serperResponse = await fetch('https://google.serper.dev/search', {
