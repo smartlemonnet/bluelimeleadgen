@@ -111,20 +111,24 @@ export default function BatchManager() {
       
       // Parsing CSV solo se presente - supporta virgolette per campi con virgole
       if (csvContent.trim()) {
-        const lines = csvContent.split('\n').filter(l => l.trim());
+        const lines = csvContent.replace(/\r\n/g, '\n').split('\n').filter(l => l.trim());
+        const splitRegex = /,(?=(?:[^"]*"[^"]*")*[^"]*$)/;
         jobs = lines.slice(1).map(line => {
-          // Parse CSV correttamente gestendo virgolette
-          const regex = /("([^"]*)"|[^,]+)/g;
-          const parts: string[] = [];
-          let match;
-          while ((match = regex.exec(line)) !== null) {
-            parts.push(match[2] !== undefined ? match[2] : match[1].trim());
-          }
+          // Parser CSV che preserva i campi vuoti e gestisce le virgolette
+          const rawParts = line.split(splitRegex);
+          const parts = rawParts.map((p) => {
+            const t = (p ?? '').trim();
+            if (t.startsWith('"') && t.endsWith('"')) {
+              return t.slice(1, -1).replace(/""/g, '"');
+            }
+            return t;
+          });
           
+          const pagesParsed = Number.parseInt(parts[2] || '');
           return {
             query: parts[0] || '',
-            location: parts[1] || null,
-            pages: parseInt(parts[2]) || 10,
+            location: parts[1] ? parts[1] : null,
+            pages: Number.isFinite(pagesParsed) ? pagesParsed : 10,
             target_names: parts[3] ? parts[3].split('|').map(n => n.trim()).filter(Boolean) : null,
           };
         }).filter(j => j.query);
