@@ -271,40 +271,18 @@ async function extractContactsFromResults(
 
       const extractedName = extractName(title, snippet);
       
-      // Apply name filter if specified (more flexible)
+      // Apply name filter if specified - CHECK ONLY IN EMAIL ADDRESS
       if (targetNames.length > 0) {
-        const textLower = text.toLowerCase();
         const emailLower = email.toLowerCase();
         
-        const nameMatches = targetNames.some(targetName => {
+        const nameInEmail = targetNames.some(targetName => {
           const targetLower = targetName.toLowerCase().trim();
-          
-          // PRIORITY 1: Check if name appears in the EMAIL ADDRESS itself
-          // This is what we really want - emails like annarinaldi64@gmail.com
-          if (emailLower.includes(targetLower)) {
-            console.log(`✓ Found ${targetLower} in email: ${email}`);
-            return true;
-          }
-          
-          // PRIORITY 2: Check extracted name
-          if (extractedName && extractedName.toLowerCase().includes(targetLower)) {
-            return true;
-          }
-          
-          // PRIORITY 3: Check in title and snippet (more visible content)
-          const visibleText = `${title} ${snippet}`.toLowerCase();
-          if (visibleText.includes(targetLower)) {
-            return true;
-          }
-          
-          // PRIORITY 4: Only if not found in visible content, check full text (but with word boundary)
-          // Use word boundary to avoid false matches like "MARIA" in "PRIMARIA"
-          const wordBoundaryRegex = new RegExp(`\\b${targetLower}\\b`, 'i');
-          return wordBoundaryRegex.test(textLower);
+          // Check ONLY if name appears in the EMAIL ADDRESS itself
+          return emailLower.includes(targetLower);
         });
         
-        if (!nameMatches) {
-          console.log(`Skipping ${email} - no match for target names`);
+        if (!nameInEmail) {
+          console.log(`Skipping ${email} - name not found in email address`);
           continue;
         }
       }
