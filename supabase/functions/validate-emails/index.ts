@@ -109,7 +109,7 @@ serve(async (req) => {
       
       try {
         // Use Mails.so batch validation API
-        const response = await fetch('https://api.mails.so/v1/validate', {
+        const response = await fetch('https://api.mails.so/v1/batch', {
           method: 'POST',
           headers: {
             'x-mails-api-key': mailsApiKey,
