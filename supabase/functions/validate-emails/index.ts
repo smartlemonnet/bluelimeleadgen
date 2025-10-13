@@ -73,7 +73,12 @@ serve(async (req) => {
     console.log(`User authenticated: ${user.id}`);
 
     const { emails, listName }: ValidationRequest = await req.json();
-    console.log(`Starting validation for ${emails.length} emails`);
+    
+    // Deduplicate emails (case-insensitive)
+    const uniqueEmails = [...new Set(emails.map(e => e.toLowerCase()))];
+    const duplicatesRemoved = emails.length - uniqueEmails.length;
+    
+    console.log(`Starting validation for ${emails.length} emails (${duplicatesRemoved} duplicates removed, ${uniqueEmails.length} unique)`);
 
     // Create validation list
     const { data: validationList, error: listError } = await supabaseClient
@@ -81,7 +86,7 @@ serve(async (req) => {
       .insert({
         name: listName,
         user_id: user.id,
-        total_emails: emails.length,
+        total_emails: uniqueEmails.length,
         status: 'processing'
       })
       .select()
@@ -101,8 +106,8 @@ serve(async (req) => {
 
     // Process in batches of 50 to avoid overwhelming the API
     const batchSize = 50;
-    for (let i = 0; i < emails.length; i += batchSize) {
-      const batch = emails.slice(i, i + batchSize);
+    for (let i = 0; i < uniqueEmails.length; i += batchSize) {
+      const batch = uniqueEmails.slice(i, i + batchSize);
       
       // Validate each email individually with retry logic
       for (const email of batch) {
@@ -216,7 +221,7 @@ serve(async (req) => {
       }
 
       // Update progress
-      const processedCount = Math.min(i + batchSize, emails.length);
+      const processedCount = Math.min(i + batchSize, uniqueEmails.length);
       await supabaseClient
         .from('validation_lists')
         .update({
@@ -228,7 +233,7 @@ serve(async (req) => {
         })
         .eq('id', validationList.id);
 
-      console.log(`Processed ${processedCount}/${emails.length} emails`);
+      console.log(`Processed ${processedCount}/${uniqueEmails.length} emails`);
     }
 
     // Mark as completed
@@ -236,7 +241,7 @@ serve(async (req) => {
       .from('validation_lists')
       .update({
         status: 'completed',
-        processed_emails: emails.length,
+        processed_emails: uniqueEmails.length,
         deliverable_count: deliverableCount,
         undeliverable_count: undeliverableCount,
         risky_count: riskyCount,
@@ -251,7 +256,8 @@ serve(async (req) => {
         success: true,
         list_id: validationList.id,
         summary: {
-          total: emails.length,
+          total: uniqueEmails.length,
+          duplicates_removed: duplicatesRemoved,
           deliverable: deliverableCount,
           undeliverable: undeliverableCount,
           risky: riskyCount,
