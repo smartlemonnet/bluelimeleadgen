@@ -280,10 +280,17 @@ Settings → GitHub → Export per scaricare tutto il codice.
 ## 🎯 Roadmap
 
 ### v1.1 (Planned)
-- AI Lead Scoring (Gemini 2.5)
-- Email personalization
-- Webhook notifications
-- Real-time updates
+- [ ] **Onboarding flow** con esempi interattivi
+- [ ] **API docs** per integrazioni esterne
+- [ ] **Export personalizzato** (CSV/XLSX avanzato con filtri)
+- [ ] **Email deliverability tips** in-app
+- [ ] **GDPR compliance disclaimer** automatico
+
+### v1.2 (Future)
+- [ ] **AI Lead Scoring** (Gemini 2.5)
+- [ ] **Email personalization** templates
+- [ ] **Webhook notifications** batch completati
+- [ ] **Real-time updates** via Supabase Realtime
 
 ---
 
