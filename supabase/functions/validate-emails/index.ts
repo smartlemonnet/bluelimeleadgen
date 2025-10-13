@@ -122,38 +122,31 @@ serve(async (req) => {
           throw new Error(`Batch API returned ${response.status}`);
         }
 
-        const data = await response.json();
-        const results = Array.isArray(data) ? data : (data.data || []);
+        const results: MailsSoResponse[] = await response.json();
+        
+        if (!Array.isArray(results)) {
+          throw new Error('Unexpected response format from Mails.so');
+        }
 
         // Process and save results
-        for (const result of results) {
-          const outcome: string = result?.result ?? result?.status ?? 'unknown';
-          const format_valid = result?.isv_format ?? result?.format_valid ?? null;
-          const domain_valid = result?.isv_domain ?? result?.domain_valid ?? null;
-          const smtp_valid = result?.isv_smtp ?? result?.smtp_valid ?? null;
-          const free_email = result?.is_free ?? result?.free_email ?? null;
-          const disposable = result?.is_disposable ?? result?.disposable ?? null;
-          const catch_all = typeof result?.catch_all === 'boolean'
-            ? result.catch_all
-            : (typeof result?.isv_nocatchall === 'boolean' ? !result.isv_nocatchall : null);
-          const deliverable = outcome === 'deliverable';
-
+        for (const r of results) {
+          const outcome = r.result ?? 'unknown';
+          
           allResults.push({
             validation_list_id: validationList.id,
-            email: result.email,
+            email: r.email,
             result: outcome,
-            format_valid,
-            domain_valid,
-            smtp_valid,
-            catch_all,
-            disposable,
-            free_email,
-            reason: result?.reason ?? null,
-            deliverable,
-            full_response: result
+            format_valid: r.isv_format ?? null,
+            domain_valid: r.isv_domain ?? null,
+            smtp_valid: r.isv_smtp ?? null,
+            catch_all: typeof r.catch_all === 'boolean' ? r.catch_all : null,
+            disposable: typeof r.disposable === 'boolean' ? r.disposable : null,
+            free_email: typeof r.free_email === 'boolean' ? r.free_email : null,
+            reason: r.reason ?? null,
+            deliverable: outcome === 'deliverable',
+            full_response: r
           });
 
-          // Update counters
           switch (outcome) {
             case 'deliverable':
               deliverableCount++;
