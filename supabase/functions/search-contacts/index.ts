@@ -85,19 +85,6 @@ serve(async (req) => {
     }
     const allContacts: any[] = [];
     const seenEmails = new Set<string>();
-    
-    // Load existing emails for this user to prevent duplicates across searches
-    if (userId) {
-      const { data: existingContacts } = await supabase
-        .from('contacts')
-        .select('email')
-        .eq('user_id', userId);
-      
-      if (existingContacts) {
-        existingContacts.forEach((c: any) => seenEmails.add(c.email.toLowerCase()));
-        console.log(`Loaded ${existingContacts.length} existing emails to prevent duplicates`);
-      }
-    }
 
     // Loop through pages
     for (let page = 1; page <= numPages; page++) {
@@ -343,28 +330,16 @@ async function extractContactsFromResults(
 
       // Save to database only if user is authenticated and search was saved
       if (userId && searchId) {
-        // Double-check this email doesn't exist (in case of race conditions)
-        const { data: existingEmail } = await supabase
+        const { data: contactData, error: contactError } = await supabase
           .from('contacts')
-          .select('id')
-          .eq('email', contact.email)
-          .limit(1)
-          .maybeSingle();
-        
-        if (!existingEmail) {
-          const { data: contactData, error: contactError } = await supabase
-            .from('contacts')
-            .insert({ ...contact, search_id: searchId })
-            .select()
-            .single();
+          .insert({ ...contact, search_id: searchId })
+          .select()
+          .single();
 
-          if (!contactError && contactData) {
-            contacts.push(contactData);
-          } else if (contactError) {
-            console.error('Error saving contact:', contactError);
-          }
-        } else {
-          console.log(`Skipped duplicate email: ${contact.email}`);
+        if (!contactError && contactData) {
+          contacts.push(contactData);
+        } else if (contactError) {
+          console.error('Error saving contact:', contactError);
         }
       } else {
         // Return contact without saving

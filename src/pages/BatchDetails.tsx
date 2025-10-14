@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -43,9 +43,7 @@ interface Contact {
   phone: string | null;
   website: string | null;
   created_at: string;
-  search_id: string; // necessario per raggruppare i contatti per job
 }
-
 
 export default function BatchDetails() {
   const { batchId } = useParams();
@@ -161,18 +159,6 @@ export default function BatchDetails() {
     return Math.round((batch.completed_jobs / batch.total_jobs) * 100);
   };
 
-  // Mappa: search_id -> numero contatti salvati
-  const countsBySearchId = useMemo(() => {
-    const map: Record<string, number> = {};
-    contacts.forEach((c) => {
-      if (c.search_id) {
-        map[c.search_id] = (map[c.search_id] || 0) + 1;
-      }
-    });
-    return map;
-  }, [contacts]);
-
-
   if (loading || !batch) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -264,7 +250,7 @@ export default function BatchDetails() {
                     <TableCell>{job.pages}</TableCell>
                     <TableCell>{getStatusBadge(job.status)}</TableCell>
                     <TableCell className="text-right font-semibold">
-                      {(job.search_id && countsBySearchId[job.search_id]) ?? 0}
+                      {job.result_count || 0}
                     </TableCell>
                   </TableRow>
                 ))}

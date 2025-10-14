@@ -590,13 +590,16 @@ const ValidationResults = () => {
         </div>
 
         {/* Emails Table */}
-          <Card className="p-6 bg-slate-900/50 border-slate-800">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-white">Email</h2>
-            </div>
-            <p className="text-sm text-slate-400 mb-4">
-              La seguente tabella mostra la lista completa validata.
-            </p>
+        <Card className="p-6 bg-slate-900/50 border-slate-800">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-white">Email</h2>
+            <Badge className="bg-slate-700 text-slate-300">
+              Limitata a 250 righe
+            </Badge>
+          </div>
+          <p className="text-sm text-slate-400 mb-4">
+            La seguente tabella mostra un campione della lista. Puoi scaricare la lista completa cliccando il pulsante sopra.
+          </p>
 
           <div className="rounded-lg border border-slate-700 overflow-hidden">
             <Table>
@@ -612,7 +615,7 @@ const ValidationResults = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {results.map((result) => (
+                {results.slice(0, 250).map((result) => (
                   <TableRow
                     key={result.id}
                     className="border-slate-700 hover:bg-slate-800/30"

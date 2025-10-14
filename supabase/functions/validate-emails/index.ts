@@ -73,7 +73,6 @@ serve(async (req) => {
     console.log(`User authenticated: ${user.id}`);
 
     const { emails, listName }: ValidationRequest = await req.json();
-    
     console.log(`Starting validation for ${emails.length} emails`);
 
     // Create validation list
@@ -100,96 +99,136 @@ serve(async (req) => {
     let riskyCount = 0;
     let unknownCount = 0;
 
-    // Process in batches of 100 (Mails.so batch API limit)
-    const batchSize = 100;
-    const allResults = [];
-
+    // Process in batches of 50 to avoid overwhelming the API
+    const batchSize = 50;
     for (let i = 0; i < emails.length; i += batchSize) {
       const batch = emails.slice(i, i + batchSize);
       
-      try {
-        // Use Mails.so batch validation API
-        const response = await fetch('https://api.mails.so/v1/batch', {
-          method: 'POST',
-          headers: {
-            'x-mails-api-key': mailsApiKey,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ emails: batch }),
-        });
+      // Validate each email individually with retry logic
+      for (const email of batch) {
+        let retries = 3;
+        let success = false;
 
-        if (!response.ok) {
-          throw new Error(`Batch API returned ${response.status}`);
-        }
+        while (retries > 0 && !success) {
+          try {
+            const response = await fetch(
+              `https://api.mails.so/v1/validate?email=${encodeURIComponent(email)}`,
+              {
+                method: 'GET',
+                headers: {
+                  'x-mails-api-key': mailsApiKey,
+                },
+              }
+            );
 
-        const results: MailsSoResponse[] = await response.json();
-        
-        if (!Array.isArray(results)) {
-          throw new Error('Unexpected response format from Mails.so');
-        }
+            if (response.status === 429) {
+              // Rate limit hit, wait and retry
+              const waitTime = Math.pow(2, 4 - retries) * 1000;
+              console.log(`Rate limited, waiting ${waitTime}ms before retry`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+              retries--;
+              continue;
+            }
 
-        // Process and save results
-        for (const r of results) {
-          const outcome = r.result ?? 'unknown';
-          
-          allResults.push({
-            validation_list_id: validationList.id,
-            email: r.email,
-            result: outcome,
-            format_valid: r.isv_format ?? null,
-            domain_valid: r.isv_domain ?? null,
-            smtp_valid: r.isv_smtp ?? null,
-            catch_all: typeof r.catch_all === 'boolean' ? r.catch_all : null,
-            disposable: typeof r.disposable === 'boolean' ? r.disposable : null,
-            free_email: typeof r.free_email === 'boolean' ? r.free_email : null,
-            reason: r.reason ?? null,
-            deliverable: outcome === 'deliverable',
-            full_response: r
-          });
+            if (!response.ok) {
+              throw new Error(`API returned ${response.status}`);
+            }
 
-          switch (outcome) {
-            case 'deliverable':
-              deliverableCount++;
-              break;
-            case 'undeliverable':
-              undeliverableCount++;
-              break;
-            case 'risky':
-              riskyCount++;
-              break;
-            default:
+            const raw = await response.json();
+            
+            // Support both flat and { data: {...} } response shapes
+            const payload = (raw && typeof raw === 'object' && 'data' in raw && (raw as any).data)
+              ? (raw as any).data
+              : raw;
+            
+            // Normalize outcome and key fields from the payload
+            const outcome: string = payload?.result ?? payload?.status ?? 'unknown';
+            const format_valid = payload?.isv_format ?? payload?.format_valid ?? null;
+            const domain_valid = payload?.isv_domain ?? payload?.domain_valid ?? null;
+            const smtp_valid = payload?.isv_smtp ?? payload?.smtp_valid ?? null;
+            const free_email = payload?.is_free ?? payload?.free_email ?? null;
+            const disposable = payload?.is_disposable ?? payload?.disposable ?? null;
+            const catch_all = typeof payload?.catch_all === 'boolean'
+              ? payload.catch_all
+              : (typeof payload?.isv_nocatchall === 'boolean' ? !payload.isv_nocatchall : null);
+            const deliverable = outcome === 'deliverable';
+
+            const { error: resultError } = await supabaseClient
+              .from('validation_results')
+              .insert({
+                validation_list_id: validationList.id,
+                email: email, // use requested email, API may not echo it back
+                result: outcome,
+                format_valid,
+                domain_valid,
+                smtp_valid,
+                catch_all,
+                disposable,
+                free_email,
+                reason: payload?.reason ?? null,
+                deliverable,
+                full_response: raw as any
+              });
+
+            if (resultError) {
+              console.error('Error saving result:', resultError);
+            }
+
+            // Update counters
+            switch (outcome) {
+              case 'deliverable':
+                deliverableCount++;
+                break;
+              case 'undeliverable':
+                undeliverableCount++;
+                break;
+              case 'risky':
+                riskyCount++;
+                break;
+              default:
+                unknownCount++;
+                break;
+            }
+
+            success = true;
+
+            // Small delay between requests to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+          } catch (error) {
+            console.error(`Error validating ${email}:`, error);
+            retries--;
+            if (retries === 0) {
+              // Save failed result
+              await supabaseClient
+                .from('validation_results')
+                .insert({
+                  validation_list_id: validationList.id,
+                  email: email,
+                  result: 'unknown',
+                  reason: 'Validation failed',
+                  deliverable: false
+                });
               unknownCount++;
-              break;
+            }
           }
         }
-
-        console.log(`Processed ${Math.min(i + batchSize, emails.length)}/${emails.length} emails`);
-
-      } catch (error) {
-        console.error(`Error validating batch:`, error);
-        // Mark batch as failed
-        for (const email of batch) {
-          allResults.push({
-            validation_list_id: validationList.id,
-            email: email,
-            result: 'unknown',
-            reason: 'Validation failed',
-            deliverable: false
-          });
-          unknownCount++;
-        }
       }
-    }
 
-    // Save all results in one operation
-    if (allResults.length > 0) {
-      const { error: insertError } = await supabaseClient
-        .from('validation_results')
-        .insert(allResults);
+      // Update progress
+      const processedCount = Math.min(i + batchSize, emails.length);
+      await supabaseClient
+        .from('validation_lists')
+        .update({
+          processed_emails: processedCount,
+          deliverable_count: deliverableCount,
+          undeliverable_count: undeliverableCount,
+          risky_count: riskyCount,
+          unknown_count: unknownCount
+        })
+        .eq('id', validationList.id);
 
-      if (insertError) {
-        console.error('Error saving results:', insertError);
-      }
+      console.log(`Processed ${processedCount}/${emails.length} emails`);
     }
 
     // Mark as completed

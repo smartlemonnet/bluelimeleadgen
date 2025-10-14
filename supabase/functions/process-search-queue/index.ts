@@ -127,23 +127,13 @@ Deno.serve(async (req) => {
           .limit(1)
           .single();
 
-        // Conta i contatti realmente salvati per questa ricerca
-        let savedCount = 0;
-        if (latestSearch?.id) {
-          const { count } = await supabase
-            .from('contacts')
-            .select('id', { count: 'exact', head: true })
-            .eq('search_id', latestSearch.id);
-          savedCount = count || 0;
-        }
-
-        // Aggiorna il job come completato con il conteggio reale
+        // Aggiorna il job come completato
         await supabase
           .from('search_jobs')
           .update({
             status: 'completed',
             executed_at: new Date().toISOString(),
-            result_count: savedCount,
+            result_count: searchData.contacts?.length || 0,
             search_id: latestSearch?.id,
           })
           .eq('id', job.id);
