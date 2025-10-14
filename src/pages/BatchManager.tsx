@@ -111,25 +111,62 @@ export default function BatchManager() {
       
       // Parsing CSV solo se presente - supporta virgolette per campi con virgole
       if (csvContent.trim()) {
-        const lines = csvContent.replace(/\r\n/g, '\n').split('\n').filter(l => l.trim());
-        const splitRegex = /,(?=(?:[^"]*"[^"]*")*[^"]*$)/;
-        jobs = lines.slice(1).map(line => {
-          // Parser CSV che preserva i campi vuoti e gestisce le virgolette
-          const rawParts = line.split(splitRegex);
-          const parts = rawParts.map((p) => {
-            const t = (p ?? '').trim();
-            if (t.startsWith('"') && t.endsWith('"')) {
-              return t.slice(1, -1).replace(/""/g, '"');
+        const normalized = csvContent.replace(/\uFEFF/g, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        const linesArr = normalized.split('\n').filter(l => l.trim());
+        const header = linesArr[0] || '';
+        const sample = linesArr[1] || header;
+
+        const detectDelimiter = (s: string) => {
+          const candidates = [',', ';', '\t'];
+          const counts = candidates.map(d => (s.match(new RegExp(`\\${d}`, 'g')) || []).length);
+          const max = Math.max(...counts);
+          return max > 0 ? candidates[counts.indexOf(max)] : ',';
+        };
+
+        const delimiter = detectDelimiter(sample);
+
+        const parseLine = (line: string, delim: string) => {
+          const out: string[] = [];
+          let cur = '';
+          let inQuotes = false;
+          for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') {
+              if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+              else { inQuotes = !inQuotes; }
+            } else if (ch === delim && !inQuotes) {
+              out.push(cur.trim());
+              cur = '';
+            } else {
+              cur += ch;
             }
-            return t;
-          });
-          
+          }
+          out.push(cur.trim());
+          return out.map((t) => t.startsWith('"') && t.endsWith('"') ? t.slice(1, -1).replace(/""/g, '"') : t);
+        };
+
+        jobs = linesArr.slice(1).map(line => {
+          const parts = parseLine(line, delimiter);
+          let query = parts[0] || '';
+          let location = parts[1] ? parts[1] : null;
           const pagesParsed = Number.parseInt(parts[2] || '');
+          const targetNamesStr = parts[3] || '';
+
+          // Se la location è vuota ma la query contiene un separatore (tab/;) con città alla fine, recuperala
+          if (!location && /\t|;/.test(query)) {
+            const split = query.split(/\t|;/);
+            if (split.length > 1) {
+              query = split[0].trim();
+              const possibleLoc = split.slice(1).join(' ').trim();
+              if (possibleLoc) location = possibleLoc;
+            }
+          }
+
           return {
-            query: parts[0] || '',
-            location: parts[1] ? parts[1] : null,
+            query,
+            location: location && location.length > 0 ? location : null,
             pages: Number.isFinite(pagesParsed) ? pagesParsed : 10,
-            target_names: parts[3] ? parts[3].split('|').map(n => n.trim()).filter(Boolean) : null,
+            target_names: targetNamesStr ? targetNamesStr.split('|').map(n => n.trim()).filter(Boolean) : null,
           };
         }).filter(j => j.query);
       }

@@ -103,9 +103,22 @@ serve(async (req) => {
         page: page,
       };
 
-      // Use proper Google geolocation parameter for geo-targeting
-      if (location) {
-        serperBody.location = location + ', Italy'; // e.g., "Milano, Italy"
+      // Use proper Google geolocation parameter for geo-targeting (sanitize weird values)
+      const sanitizeLocation = (loc: unknown): string | null => {
+        if (typeof loc !== 'string') return null;
+        let l = loc;
+        if (l.includes('|')) l = l.split('|')[0];
+        l = l.split('\t')[0];
+        l = l.replace(/\d+/g, '').trim();
+        if (!l) return null;
+        return l;
+      };
+
+      const safeLocation = sanitizeLocation(location);
+
+      if (safeLocation) {
+        const alreadyHasCountry = /,/.test(safeLocation) || /\bitaly\b/i.test(safeLocation);
+        serperBody.location = alreadyHasCountry ? safeLocation : `${safeLocation}, Italy`;
         serperBody.gl = 'it'; // Country code
         serperBody.hl = 'it'; // Language
         console.log(`\n=== A/B TEST: LOCATION PARAMETER ===`);
