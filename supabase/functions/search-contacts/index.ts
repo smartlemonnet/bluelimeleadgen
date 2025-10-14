@@ -220,10 +220,11 @@ async function extractContactsFromResults(
       }
     }
 
-    // Check if this is a social media link (Instagram, Facebook, TikTok)
+    // Check if this is a social media link (Instagram, Facebook, TikTok, LinkedIn)
     const isSocialMedia = link.includes('instagram.com') || 
                           link.includes('facebook.com') || 
-                          link.includes('tiktok.com');
+                          link.includes('tiktok.com') ||
+                          link.includes('linkedin.com');
 
     // For social media, ONLY use snippets (don't fetch HTML - it's blocked)
     // For other sites, try to fetch HTML for more emails
