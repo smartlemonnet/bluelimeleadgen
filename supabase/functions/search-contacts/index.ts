@@ -32,13 +32,20 @@ serve(async (req) => {
     console.log('Provided query from frontend:', query);
     console.log('Search params:', { numPages, emailProviders, websites, targetNames, providedUserId, location });
 
-    // Build enhanced search query with target names for better results
+    // Build enhanced search query with email providers and target names for better results
     let searchQuery = query;
+    
+    // Add email providers to query if specified (critical for finding emails in Google index)
+    if (emailProviders && emailProviders.length > 0) {
+      const emailQuery = emailProviders.map((p: string) => `"${p}"`).join(' OR ');
+      searchQuery = `${searchQuery} (${emailQuery})`;
+      console.log(`Enhanced query with email providers: ${searchQuery}`);
+    }
     
     // Add target names to query if specified (improves search relevance)
     if (targetNames && targetNames.length > 0) {
       const namesQuery = targetNames.slice(0, 5).map((n: string) => `"${n.toLowerCase()}"`).join(' OR ');
-      searchQuery = `${query} (${namesQuery})`;
+      searchQuery = `${searchQuery} (${namesQuery})`;
       console.log(`Enhanced query with names: ${searchQuery}`);
     }
     
