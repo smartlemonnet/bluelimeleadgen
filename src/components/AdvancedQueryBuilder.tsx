@@ -175,10 +175,17 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
     setTargetNames(targetNames.filter(n => n !== name));
   };
 
+  // Helper: default email providers when searching social without providers
+  const SOCIAL_DOMAINS = ['instagram.com','facebook.com','linkedin.com','tiktok.com'];
+  const getEffectiveEmailProviders = (current: string[], sites: string[]) => {
+    const hasSocial = sites?.some((w) => SOCIAL_DOMAINS.includes(w.toLowerCase()));
+    return hasSocial && (!current || current.length === 0) ? ['@gmail.com','@yahoo.com'] : current;
+  };
+
   const generateQuery = () => {
     // Build REAL search query for Google including all filters
     let searchQueryParts: string[] = [];
-    
+
     if (keyword) searchQueryParts.push(keyword);
     if (location) searchQueryParts.push(`"${location}"`);
     
@@ -188,10 +195,10 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
       searchQueryParts.push(`(${sitePart})`);
     }
 
-    // email provider hints (e.g., "@gmail.com" OR "gmail.com")
-    if (emailProviders.length > 0) {
+    const effectiveProvidersGen = getEffectiveEmailProviders(emailProviders, websites);
+    if (effectiveProvidersGen.length > 0) {
       const providerTerms = Array.from(new Set(
-        emailProviders.flatMap((raw) => {
+        effectiveProvidersGen.flatMap((raw) => {
           const p = raw.trim();
           if (!p) return [] as string[];
           const terms: string[] = [];
@@ -202,6 +209,12 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
         })
       ));
       if (providerTerms.length > 0) searchQueryParts.push(`(${providerTerms.join(' OR ')})`);
+      if (emailProviders.length === 0 && effectiveProvidersGen.length > 0) {
+        toast({
+          title: "Suggerimento aggiunto",
+          description: 'Aggiunti automaticamente "@gmail.com" e "@yahoo.com" per trovare email sui social.',
+        });
+      }
     }
 
     // target names
@@ -232,9 +245,10 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
         const sitePart = websites.map(w => `site:${w}`).join(" OR ");
         parts.push(`(${sitePart})`);
       }
-      if (emailProviders.length > 0) {
+      const effectiveProvidersExec = getEffectiveEmailProviders(emailProviders, websites);
+      if (effectiveProvidersExec.length > 0) {
         const providerTerms = Array.from(new Set(
-          emailProviders.flatMap((raw) => {
+          effectiveProvidersExec.flatMap((raw) => {
             const p = raw.trim();
             if (!p) return [] as string[];
             const terms: string[] = [];
@@ -256,15 +270,16 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
     console.log('Sending query to backend:', queryToSend);
     
     // Pass the FULL query to backend
+    const effectiveProvidersFinal = getEffectiveEmailProviders(emailProviders, websites);
     const searchParams = {
       query: queryToSend,
       location: location || undefined,
-      emailProviders,
+      emailProviders: effectiveProvidersFinal,
       websites,
       targetNames,
       pages
     };
-    
+
     onSearch(searchParams);
   };
 
