@@ -93,7 +93,7 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
         title: "✓ Template salvato",
         description: `"${templateName}" salvato con successo`,
       });
-      setTemplateName("");
+      // Non azzero più il nome così rimane visibile dopo il salvataggio
       loadTemplates();
     }
   };
