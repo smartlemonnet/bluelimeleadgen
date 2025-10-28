@@ -274,6 +274,44 @@ export type Database = {
         }
         Relationships: []
       }
+      validation_queue: {
+        Row: {
+          created_at: string
+          email: string
+          error_message: string | null
+          id: string
+          processed_at: string | null
+          status: string
+          validation_list_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          error_message?: string | null
+          id?: string
+          processed_at?: string | null
+          status?: string
+          validation_list_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          error_message?: string | null
+          id?: string
+          processed_at?: string | null
+          status?: string
+          validation_list_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validation_queue_validation_list_id_fkey"
+            columns: ["validation_list_id"]
+            isOneToOne: false
+            referencedRelation: "validation_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       validation_results: {
         Row: {
           catch_all: boolean | null
@@ -338,7 +376,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_validation_counter: {
+        Args: { counter_name: string; list_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
