@@ -632,7 +632,7 @@ const ValidationResults = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {results.map((result) => (
+                {results.slice(0, 250).map((result) => (
                   <TableRow
                     key={result.id}
                     className="border-slate-700 hover:bg-slate-800/30"
