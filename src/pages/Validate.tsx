@@ -160,9 +160,14 @@ const Validate = () => {
       if (error) throw error;
 
       toast({
-        title: "✅ Validazione completata",
-        description: `${data.summary.deliverable} email valide su ${data.summary.total}`,
+        title: "✅ Validazione avviata",
+        description: `${emails.length} email in coda. Processamento parallelo attivo...`,
       });
+
+      // Trigger worker to process queue
+      supabase.functions.invoke("process-validation-queue", {
+        body: {},
+      }).catch(err => console.error('Worker trigger error:', err));
 
       await loadValidationHistory();
       navigate(`/validate/${data.list_id}`);
