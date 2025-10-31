@@ -160,8 +160,8 @@ const Validate = () => {
       if (error) throw error;
 
       toast({
-        title: "✅ Validazione completata",
-        description: `${data.summary.deliverable} email valide su ${data.summary.total}`,
+        title: "✅ Validazione avviata",
+        description: `${emails.length} email aggiunte alla coda. Elaborazione in corso...`,
       });
 
       await loadValidationHistory();
