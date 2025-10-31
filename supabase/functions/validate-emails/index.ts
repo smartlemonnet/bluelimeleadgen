@@ -41,6 +41,7 @@ serve(async (req) => {
       );
     }
 
+    // User-authenticated client for validation_lists
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -49,6 +50,12 @@ serve(async (req) => {
           headers: { Authorization: authHeader },
         },
       }
+    );
+
+    // Service role client for queue operations (bypasses RLS)
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     const token = authHeader.replace('Bearer ', '');
@@ -89,14 +96,14 @@ serve(async (req) => {
 
     if (listError) throw listError;
 
-    // Add all emails to validation queue for parallel processing
+    // Add all emails to validation queue for parallel processing (using admin client)
     const queueItems = emails.map(email => ({
       email,
       validation_list_id: validationList.id,
       status: 'pending'
     }));
 
-    const { error: queueError } = await supabaseClient
+    const { error: queueError } = await supabaseAdmin
       .from('validation_queue')
       .insert(queueItems);
 

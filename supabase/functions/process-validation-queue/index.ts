@@ -142,6 +142,7 @@ Deno.serve(async (req) => {
 
           return { success: true, item, result };
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
           console.error(`Failed to validate ${item.email}:`, error);
           
           // Mark as failed in queue
@@ -149,12 +150,12 @@ Deno.serve(async (req) => {
             .from('validation_queue')
             .update({ 
               status: 'failed', 
-              error_message: error.message,
+              error_message: errorMessage,
               processed_at: new Date().toISOString() 
             })
             .eq('id', item.id);
 
-          return { success: false, item, error: error.message };
+          return { success: false, item, error: errorMessage };
         }
       })
     );
@@ -181,9 +182,10 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('Queue processor error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
