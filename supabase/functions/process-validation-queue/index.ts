@@ -38,8 +38,8 @@ Deno.serve(async (req) => {
       throw new Error('MAILS_SO_API_KEY not configured');
     }
 
-    // Process emails in batches of 100 (parallel calls for max speed)
-    const batchSize = 100;
+    // Process emails in batches of 50 (parallel calls)
+    const batchSize = 50;
     
     console.log('Starting validation queue processor...');
 
@@ -142,7 +142,6 @@ Deno.serve(async (req) => {
 
           return { success: true, item, result };
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
           console.error(`Failed to validate ${item.email}:`, error);
           
           // Mark as failed in queue
@@ -150,12 +149,12 @@ Deno.serve(async (req) => {
             .from('validation_queue')
             .update({ 
               status: 'failed', 
-              error_message: errorMessage,
+              error_message: error.message,
               processed_at: new Date().toISOString() 
             })
             .eq('id', item.id);
 
-          return { success: false, item, error: errorMessage };
+          return { success: false, item, error: error.message };
         }
       })
     );
@@ -182,10 +181,9 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('Queue processor error:', error);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }

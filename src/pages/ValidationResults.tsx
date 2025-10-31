@@ -27,7 +27,9 @@ import {
 interface ValidationList {
   id: string;
   name: string;
+  status: string;
   total_emails: number;
+  processed_emails: number;
   deliverable_count: number;
   undeliverable_count: number;
   risky_count: number;
@@ -91,6 +93,21 @@ const ValidationResults = () => {
       loadData();
     }
   }, [listId]);
+
+  // Auto-refresh while processing + trigger worker every 30s
+  useEffect(() => {
+    if (!list || list.status !== 'processing') return;
+    
+    const interval = setInterval(() => {
+      loadData();
+      // Trigger worker to continue processing
+      supabase.functions.invoke("process-validation-queue", {
+        body: {},
+      }).catch(err => console.error('Worker trigger error:', err));
+    }, 30000); // Every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [list?.status]);
 
   const loadData = async () => {
     setLoading(true);
@@ -615,7 +632,7 @@ const ValidationResults = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {results.slice(0, 250).map((result) => (
+                {results.map((result) => (
                   <TableRow
                     key={result.id}
                     className="border-slate-700 hover:bg-slate-800/30"

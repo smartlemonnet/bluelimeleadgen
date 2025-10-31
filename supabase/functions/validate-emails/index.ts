@@ -41,7 +41,6 @@ serve(async (req) => {
       );
     }
 
-    // User-authenticated client for validation_lists
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -50,12 +49,6 @@ serve(async (req) => {
           headers: { Authorization: authHeader },
         },
       }
-    );
-
-    // Service role client for queue operations (bypasses RLS)
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     const token = authHeader.replace('Bearer ', '');
@@ -80,7 +73,13 @@ serve(async (req) => {
     console.log(`User authenticated: ${user.id}`);
 
     const { emails, listName }: ValidationRequest = await req.json();
-    console.log(`Starting validation for ${emails.length} emails - using queue system`);
+    console.log(`Starting validation for ${emails.length} emails`);
+
+    // Use service role to bypass RLS for queue operations
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
     // Create validation list
     const { data: validationList, error: listError } = await supabaseClient
@@ -96,10 +95,10 @@ serve(async (req) => {
 
     if (listError) throw listError;
 
-    // Add all emails to validation queue for parallel processing (using admin client)
+    // Add emails to validation queue for parallel processing
     const queueItems = emails.map(email => ({
-      email,
       validation_list_id: validationList.id,
+      email: email,
       status: 'pending'
     }));
 
@@ -114,13 +113,11 @@ serve(async (req) => {
 
     console.log(`Added ${emails.length} emails to validation queue`);
 
-    // Return immediately - processing happens in background via process-validation-queue
     return new Response(
       JSON.stringify({
         success: true,
         list_id: validationList.id,
-        message: 'Validation started. Check status on results page.',
-        total: emails.length
+        message: `Validation started for ${emails.length} emails. Processing in background...`
       }),
       {
         status: 200,
