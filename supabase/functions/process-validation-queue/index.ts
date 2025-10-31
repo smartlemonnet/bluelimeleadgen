@@ -38,8 +38,8 @@ Deno.serve(async (req) => {
       throw new Error('MAILS_SO_API_KEY not configured');
     }
 
-    // Process emails in batches of 50 (parallel calls)
-    const batchSize = 50;
+    // Process emails in batches of 100 (parallel calls for max speed)
+    const batchSize = 100;
     
     console.log('Starting validation queue processor...');
 

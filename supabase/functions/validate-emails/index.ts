@@ -73,7 +73,7 @@ serve(async (req) => {
     console.log(`User authenticated: ${user.id}`);
 
     const { emails, listName }: ValidationRequest = await req.json();
-    console.log(`Starting validation for ${emails.length} emails`);
+    console.log(`Starting validation for ${emails.length} emails - using queue system`);
 
     // Create validation list
     const { data: validationList, error: listError } = await supabaseClient
@@ -89,174 +89,31 @@ serve(async (req) => {
 
     if (listError) throw listError;
 
-    const mailsApiKey = Deno.env.get('MAILS_SO_API_KEY');
-    if (!mailsApiKey) {
-      throw new Error('MAILS_SO_API_KEY not configured');
+    // Add all emails to validation queue for parallel processing
+    const queueItems = emails.map(email => ({
+      email,
+      validation_list_id: validationList.id,
+      status: 'pending'
+    }));
+
+    const { error: queueError } = await supabaseClient
+      .from('validation_queue')
+      .insert(queueItems);
+
+    if (queueError) {
+      console.error('Error adding to queue:', queueError);
+      throw queueError;
     }
 
-    let deliverableCount = 0;
-    let undeliverableCount = 0;
-    let riskyCount = 0;
-    let unknownCount = 0;
+    console.log(`Added ${emails.length} emails to validation queue`);
 
-    // Process in batches of 50 to avoid overwhelming the API
-    const batchSize = 50;
-    for (let i = 0; i < emails.length; i += batchSize) {
-      const batch = emails.slice(i, i + batchSize);
-      
-      // Validate each email individually with retry logic
-      for (const email of batch) {
-        let retries = 3;
-        let success = false;
-
-        while (retries > 0 && !success) {
-          try {
-            const response = await fetch(
-              `https://api.mails.so/v1/validate?email=${encodeURIComponent(email)}`,
-              {
-                method: 'GET',
-                headers: {
-                  'x-mails-api-key': mailsApiKey,
-                },
-              }
-            );
-
-            if (response.status === 429) {
-              // Rate limit hit, wait and retry
-              const waitTime = Math.pow(2, 4 - retries) * 1000;
-              console.log(`Rate limited, waiting ${waitTime}ms before retry`);
-              await new Promise(resolve => setTimeout(resolve, waitTime));
-              retries--;
-              continue;
-            }
-
-            if (!response.ok) {
-              throw new Error(`API returned ${response.status}`);
-            }
-
-            const raw = await response.json();
-            
-            // Support both flat and { data: {...} } response shapes
-            const payload = (raw && typeof raw === 'object' && 'data' in raw && (raw as any).data)
-              ? (raw as any).data
-              : raw;
-            
-            // Normalize outcome and key fields from the payload
-            const outcome: string = payload?.result ?? payload?.status ?? 'unknown';
-            const format_valid = payload?.isv_format ?? payload?.format_valid ?? null;
-            const domain_valid = payload?.isv_domain ?? payload?.domain_valid ?? null;
-            const smtp_valid = payload?.isv_smtp ?? payload?.smtp_valid ?? null;
-            const free_email = payload?.is_free ?? payload?.free_email ?? null;
-            const disposable = payload?.is_disposable ?? payload?.disposable ?? null;
-            const catch_all = typeof payload?.catch_all === 'boolean'
-              ? payload.catch_all
-              : (typeof payload?.isv_nocatchall === 'boolean' ? !payload.isv_nocatchall : null);
-            const deliverable = outcome === 'deliverable';
-
-            const { error: resultError } = await supabaseClient
-              .from('validation_results')
-              .insert({
-                validation_list_id: validationList.id,
-                email: email, // use requested email, API may not echo it back
-                result: outcome,
-                format_valid,
-                domain_valid,
-                smtp_valid,
-                catch_all,
-                disposable,
-                free_email,
-                reason: payload?.reason ?? null,
-                deliverable,
-                full_response: raw as any
-              });
-
-            if (resultError) {
-              console.error('Error saving result:', resultError);
-            }
-
-            // Update counters
-            switch (outcome) {
-              case 'deliverable':
-                deliverableCount++;
-                break;
-              case 'undeliverable':
-                undeliverableCount++;
-                break;
-              case 'risky':
-                riskyCount++;
-                break;
-              default:
-                unknownCount++;
-                break;
-            }
-
-            success = true;
-
-            // Small delay between requests to avoid rate limiting
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-          } catch (error) {
-            console.error(`Error validating ${email}:`, error);
-            retries--;
-            if (retries === 0) {
-              // Save failed result
-              await supabaseClient
-                .from('validation_results')
-                .insert({
-                  validation_list_id: validationList.id,
-                  email: email,
-                  result: 'unknown',
-                  reason: 'Validation failed',
-                  deliverable: false
-                });
-              unknownCount++;
-            }
-          }
-        }
-      }
-
-      // Update progress
-      const processedCount = Math.min(i + batchSize, emails.length);
-      await supabaseClient
-        .from('validation_lists')
-        .update({
-          processed_emails: processedCount,
-          deliverable_count: deliverableCount,
-          undeliverable_count: undeliverableCount,
-          risky_count: riskyCount,
-          unknown_count: unknownCount
-        })
-        .eq('id', validationList.id);
-
-      console.log(`Processed ${processedCount}/${emails.length} emails`);
-    }
-
-    // Mark as completed
-    await supabaseClient
-      .from('validation_lists')
-      .update({
-        status: 'completed',
-        processed_emails: emails.length,
-        deliverable_count: deliverableCount,
-        undeliverable_count: undeliverableCount,
-        risky_count: riskyCount,
-        unknown_count: unknownCount
-      })
-      .eq('id', validationList.id);
-
-    console.log(`Validation completed: ${deliverableCount} deliverable, ${undeliverableCount} undeliverable, ${riskyCount} risky, ${unknownCount} unknown`);
-
+    // Return immediately - processing happens in background via process-validation-queue
     return new Response(
       JSON.stringify({
         success: true,
         list_id: validationList.id,
-        summary: {
-          total: emails.length,
-          deliverable: deliverableCount,
-          undeliverable: undeliverableCount,
-          risky: riskyCount,
-          unknown: unknownCount
-        }
+        message: 'Validation started. Check status on results page.',
+        total: emails.length
       }),
       {
         status: 200,
