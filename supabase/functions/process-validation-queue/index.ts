@@ -38,144 +38,177 @@ Deno.serve(async (req) => {
       throw new Error('MAILS_SO_API_KEY not configured');
     }
 
-    // Process emails in batches of 50 (parallel calls)
-    const batchSize = 50;
-    
+    // Process emails faster: larger batches + loop until empty or time limit
+    const batchSize = 200;
+    const maxDurationMs = 50000; // keep under function timeout
+    const startTime = Date.now();
+
     console.log('Starting validation queue processor...');
 
-    // Get pending emails from queue
-    const { data: queueItems, error: queueError } = await supabase
-      .from('validation_queue')
-      .select('*')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true })
-      .limit(batchSize);
+    let totalSucceeded = 0;
+    let totalFailed = 0;
+    let totalProcessed = 0;
 
-    if (queueError) {
-      console.error('Error fetching queue items:', queueError);
-      throw queueError;
-    }
+    // Keep processing while there are pending items and we have time left
+    while (Date.now() - startTime < maxDurationMs) {
+      // Get a batch of pending emails from queue
+      const { data: queueItems, error: queueError } = await supabase
+        .from('validation_queue')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true })
+        .limit(batchSize);
 
-    if (!queueItems || queueItems.length === 0) {
-      console.log('No pending emails in queue');
-      return new Response(
-        JSON.stringify({ message: 'No pending emails' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      );
-    }
+      if (queueError) {
+        console.error('Error fetching queue items:', queueError);
+        throw queueError;
+      }
 
-    console.log(`Processing ${queueItems.length} emails in parallel...`);
+      if (!queueItems || queueItems.length === 0) {
+        console.log('No pending emails in queue');
+        break;
+      }
 
-    let succeeded = 0;
-    let failed = 0;
+      console.log(`Fetched ${queueItems.length} pending emails. Claiming and processing in parallel...`);
 
-    // Process all emails in parallel using Promise.allSettled
-    const results = await Promise.allSettled(
-      queueItems.map(async (item: QueueItem) => {
-        try {
-          // Call Mails.so API
-          const response = await fetch(`https://api.mails.so/v1/validate?email=${encodeURIComponent(item.email)}`, {
-            headers: {
-              'x-mails-api-key': mailsSoApiKey,
-            },
-          });
+      // Claim items to avoid double-processing across concurrent runs
+      const ids = queueItems.map((q) => q.id);
+      const { data: claimedItems, error: claimError } = await supabase
+        .from('validation_queue')
+        .update({ status: 'processing' })
+        .in('id', ids)
+        .eq('status', 'pending')
+        .select('*');
 
-          if (!response.ok) {
-            throw new Error(`Mails.so API error: ${response.status}`);
-          }
+      if (claimError) {
+        console.error('Error claiming queue items:', claimError);
+        throw claimError;
+      }
 
-          const validationData: MailsSoResponse = await response.json();
+      if (!claimedItems || claimedItems.length === 0) {
+        console.log('Nothing claimed (likely processed by another worker). Continuing...');
+        continue;
+      }
 
-          // Normalize the outcome
-          let result = 'unknown';
-          if (validationData.deliverable) {
-            result = 'deliverable';
-          } else if (validationData.disposable || !validationData.format_valid || !validationData.domain_valid) {
-            result = 'undeliverable';
-          } else if (validationData.catch_all || !validationData.smtp_valid) {
-            result = 'risky';
-          }
+      let succeeded = 0;
+      let failed = 0;
 
-          // Save validation result
-          const { error: insertError } = await supabase
-            .from('validation_results')
-            .insert({
-              validation_list_id: item.validation_list_id,
-              email: item.email,
-              result,
-              format_valid: validationData.format_valid,
-              domain_valid: validationData.domain_valid,
-              smtp_valid: validationData.smtp_valid,
-              deliverable: validationData.deliverable,
-              catch_all: validationData.catch_all,
-              disposable: validationData.disposable,
-              free_email: validationData.free_email,
-              full_response: validationData,
+      // Process all claimed emails in parallel using Promise.allSettled
+      const results = await Promise.allSettled(
+        claimedItems.map(async (item: QueueItem) => {
+          try {
+            // Call Mails.so API
+            const response = await fetch(`https://api.mails.so/v1/validate?email=${encodeURIComponent(item.email)}`, {
+              headers: {
+                'x-mails-api-key': mailsSoApiKey,
+              },
             });
 
-          if (insertError) {
-            console.error(`Error saving result for ${item.email}:`, insertError);
-            throw insertError;
+            if (!response.ok) {
+              throw new Error(`Mails.so API error: ${response.status}`);
+            }
+
+            const validationData: MailsSoResponse = await response.json();
+
+            // Normalize the outcome
+            let result = 'unknown';
+            if (validationData.deliverable) {
+              result = 'deliverable';
+            } else if (validationData.disposable || !validationData.format_valid || !validationData.domain_valid) {
+              result = 'undeliverable';
+            } else if (validationData.catch_all || !validationData.smtp_valid) {
+              result = 'risky';
+            }
+
+            // Save validation result
+            const { error: insertError } = await supabase
+              .from('validation_results')
+              .insert({
+                validation_list_id: item.validation_list_id,
+                email: item.email,
+                result,
+                format_valid: validationData.format_valid,
+                domain_valid: validationData.domain_valid,
+                smtp_valid: validationData.smtp_valid,
+                deliverable: validationData.deliverable,
+                catch_all: validationData.catch_all,
+                disposable: validationData.disposable,
+                free_email: validationData.free_email,
+                full_response: validationData,
+              });
+
+            if (insertError) {
+              console.error(`Error saving result for ${item.email}:`, insertError);
+              throw insertError;
+            }
+
+            // Mark queue item as completed
+            const { error: updateError } = await supabase
+              .from('validation_queue')
+              .update({ status: 'completed', processed_at: new Date().toISOString() })
+              .eq('id', item.id);
+
+            if (updateError) {
+              console.error(`Error updating queue item ${item.id}:`, updateError);
+              throw updateError;
+            }
+
+            // Update validation list counters
+            const counterField = `${result}_count`;
+            const { error: counterError } = await supabase.rpc('increment_validation_counter', {
+              list_id: item.validation_list_id,
+              counter_name: counterField,
+            });
+
+            if (counterError) {
+              console.error(`Error updating counter for ${item.validation_list_id}:`, counterError);
+            }
+
+            return { success: true, item, result };
+          } catch (error: any) {
+            console.error(`Failed to validate ${item.email}:`, error);
+
+            // Mark as failed in queue
+            await supabase
+              .from('validation_queue')
+              .update({
+                status: 'failed',
+                error_message: String(error?.message ?? error),
+                processed_at: new Date().toISOString(),
+              })
+              .eq('id', item.id);
+
+            return { success: false, item, error: String(error?.message ?? error) };
           }
+        })
+      );
 
-          // Mark queue item as completed
-          const { error: updateError } = await supabase
-            .from('validation_queue')
-            .update({ status: 'completed', processed_at: new Date().toISOString() })
-            .eq('id', item.id);
-
-          if (updateError) {
-            console.error(`Error updating queue item ${item.id}:`, updateError);
-            throw updateError;
-          }
-
-          // Update validation list counters
-          const counterField = `${result}_count`;
-          const { error: counterError } = await supabase.rpc('increment_validation_counter', {
-            list_id: item.validation_list_id,
-            counter_name: counterField,
-          });
-
-          if (counterError) {
-            console.error(`Error updating counter for ${item.validation_list_id}:`, counterError);
-          }
-
-          return { success: true, item, result };
-        } catch (error) {
-          console.error(`Failed to validate ${item.email}:`, error);
-          
-          // Mark as failed in queue
-          await supabase
-            .from('validation_queue')
-            .update({ 
-              status: 'failed', 
-              error_message: error.message,
-              processed_at: new Date().toISOString() 
-            })
-            .eq('id', item.id);
-
-          return { success: false, item, error: error.message };
+      // Count successes and failures for this batch
+      results.forEach((result: PromiseSettledResult<any>) => {
+        if (result.status === 'fulfilled' && result.value.success) {
+          succeeded++;
+        } else {
+          failed++;
         }
-      })
-    );
+      });
 
-    // Count successes and failures
-    results.forEach((result: PromiseSettledResult<any>) => {
-      if (result.status === 'fulfilled' && result.value.success) {
-        succeeded++;
-      } else {
-        failed++;
-      }
-    });
+      totalSucceeded += succeeded;
+      totalFailed += failed;
+      totalProcessed += claimedItems.length;
 
-    console.log(`Validation complete: ${succeeded} succeeded, ${failed} failed`);
+      console.log(`Batch complete: ${succeeded} succeeded, ${failed} failed. Total processed so far: ${totalProcessed}`);
+
+      // If we processed fewer than batchSize, queue is likely draining; loop will fetch again
+    }
+
+    console.log(`Validation run complete: ${totalSucceeded} succeeded, ${totalFailed} failed, ${totalProcessed} processed in total.`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        processed: queueItems.length,
-        succeeded,
-        failed 
+      JSON.stringify({
+        success: true,
+        processed: totalProcessed,
+        succeeded: totalSucceeded,
+        failed: totalFailed,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
