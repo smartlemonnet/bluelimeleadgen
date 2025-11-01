@@ -90,7 +90,7 @@ const ValidationResults = () => {
 
   useEffect(() => {
     if (listId) {
-      loadData();
+      loadData(true);
     }
   }, [listId]);
 
@@ -105,8 +105,8 @@ const ValidationResults = () => {
     return () => clearInterval(interval);
   }, [list?.status]);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (initial = false) => {
+    if (initial) setLoading(true);
     
     // Load list info
     const { data: listData } = await supabase
@@ -129,7 +129,7 @@ const ValidationResults = () => {
       setResults(resultsData);
     }
 
-    setLoading(false);
+    if (initial) setLoading(false);
   };
 
   const exportResults = (onlyValid: boolean) => {
@@ -315,6 +315,7 @@ const ValidationResults = () => {
                     dataKey="value"
                     strokeWidth={2}
                     stroke="rgba(255,255,255,0.1)"
+                    isAnimationActive={false}
                   >
                     {pieData.map((entry, index) => (
                       <Cell 
@@ -471,6 +472,7 @@ const ValidationResults = () => {
                       paddingAngle={2}
                       dataKey="value"
                       strokeWidth={0}
+                      isAnimationActive={false}
                     />
                     <Tooltip contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px' }} />
                   </PieChart>
@@ -525,6 +527,7 @@ const ValidationResults = () => {
                       paddingAngle={2}
                       dataKey="value"
                       strokeWidth={0}
+                      isAnimationActive={false}
                     />
                     <Tooltip contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px' }} />
                   </PieChart>
@@ -579,6 +582,7 @@ const ValidationResults = () => {
                       paddingAngle={2}
                       dataKey="value"
                       strokeWidth={0}
+                      isAnimationActive={false}
                     />
                     <Tooltip contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(99, 102, 241, 0.3)', borderRadius: '6px' }} />
                   </PieChart>

@@ -164,13 +164,11 @@ const Validate = () => {
         description: `${emails.length} email in coda. Processamento parallelo attivo...`,
       });
 
-      // Trigger worker to process queue
-      supabase.functions.invoke("process-validation-queue", {
-        body: {},
-      }).catch(err => console.error('Worker trigger error:', err));
-
       await loadValidationHistory();
-      navigate(`/validate/${data.list_id}`);
+      toast({
+        title: "In elaborazione",
+        description: "Apri la lista dalla sezione 'Le Mie Liste' per seguire l'avanzamento.",
+      });
       setEmails([]);
       setListName("");
     } catch (error: any) {
