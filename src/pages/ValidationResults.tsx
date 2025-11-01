@@ -94,17 +94,13 @@ const ValidationResults = () => {
     }
   }, [listId]);
 
-  // Auto-refresh while processing + trigger worker every 5s for speed
+  // Auto-refresh while processing (no extra worker calls)
   useEffect(() => {
     if (!list || list.status !== 'processing') return;
     
     const interval = setInterval(() => {
       loadData();
-      // Trigger worker to continue processing quickly
-      supabase.functions.invoke("process-validation-queue", {
-        body: {},
-      }).catch(err => console.error('Worker trigger error:', err));
-    }, 5000); // Every 5 seconds
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [list?.status]);
