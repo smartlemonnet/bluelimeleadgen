@@ -92,7 +92,7 @@ const Dashboard = () => {
                   Batch Manager
                 </Button>
                 <Button 
-                  onClick={() => navigate('/validate')}
+                  onClick={() => window.open('https://mail-verifier-pro-inforetroplay.replit.app/', '_blank')}
                   size="lg"
                   className="h-24 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-lg font-semibold relative overflow-hidden"
                 >
