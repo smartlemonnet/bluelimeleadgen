@@ -6,12 +6,17 @@ import { Search, Mail, ArrowLeft, Zap, LogOut, CheckCircle } from "lucide-react"
 import logo from "@/assets/logo.png";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { SearchForm } from "@/components/SearchForm";
+import { ContactsTable } from "@/components/ContactsTable";
 
 
 const Dashboard = () => {
   const [contactsCount, setContactsCount] = useState(0);
   const [searchesCount, setSearchesCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [currentSearchId, setCurrentSearchId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -45,6 +50,49 @@ const Dashboard = () => {
     }
   };
 
+  const handleSearch = async (query: string, location?: string, pages: number = 1) => {
+    setIsSearching(true);
+    setSearchResults([]);
+    setCurrentSearchId(null);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Utente non autenticato");
+
+      const { data, error } = await supabase.functions.invoke('search-contacts', {
+        body: { query, location, pages }
+      });
+
+      if (error) throw error;
+
+      if (data?.search_id) {
+        setCurrentSearchId(data.search_id);
+        const { data: contacts, error: contactsError } = await supabase
+          .from('contacts')
+          .select('*')
+          .eq('search_id', data.search_id);
+
+        if (contactsError) throw contactsError;
+
+        setSearchResults(contacts || []);
+        toast({
+          title: "Ricerca completata",
+          description: `Trovati ${contacts?.length || 0} contatti`,
+        });
+        
+        loadData();
+      }
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante la ricerca",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -69,20 +117,31 @@ const Dashboard = () => {
           </div>
         ) : (
           <>
-            {/* Quick Actions - Most Important */}
+            {/* Single Search Section */}
+            <div className="mb-12">
+              <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
+                <Search className="h-6 w-6 text-primary" />
+                Ricerca Singola
+              </h2>
+              <div className="grid gap-6 lg:grid-cols-2">
+                <SearchForm onSearch={handleSearch} isLoading={isSearching} />
+                {(searchResults.length > 0 || isSearching) && (
+                  <div className="lg:col-span-1">
+                    <ContactsTable 
+                      contacts={searchResults} 
+                      isLoading={isSearching}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Actions */}
             <div className="mb-12">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <span className="text-secondary">→</span> Azioni Rapide
               </h2>
-              <div className="grid gap-4 md:grid-cols-3">
-                <Button 
-                  onClick={() => navigate('/')}
-                  size="lg"
-                  className="h-24 bg-primary hover:bg-primary/90 text-lg font-semibold"
-                >
-                  <Search className="mr-3 h-6 w-6" />
-                  Nuova Ricerca
-                </Button>
+              <div className="grid gap-4 md:grid-cols-2">
                 <Button 
                   onClick={() => navigate('/batch')}
                   size="lg"
