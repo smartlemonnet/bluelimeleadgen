@@ -48,6 +48,7 @@ Deno.serve(async (req) => {
     let totalSucceeded = 0;
     let totalFailed = 0;
     let totalProcessed = 0;
+    const touchedListIds = new Set<string>();
 
     // Keep processing while there are pending items and we have time left
     while (Date.now() - startTime < maxDurationMs) {
@@ -89,6 +90,9 @@ Deno.serve(async (req) => {
         console.log('Nothing claimed (likely processed by another worker). Continuing...');
         continue;
       }
+
+      // Track lists touched in this batch
+      claimedItems.forEach((item: any) => touchedListIds.add(item.validation_list_id));
 
       let succeeded = 0;
       let failed = 0;
@@ -202,6 +206,31 @@ Deno.serve(async (req) => {
     }
 
     console.log(`Validation run complete: ${totalSucceeded} succeeded, ${totalFailed} failed, ${totalProcessed} processed in total.`);
+
+    // Mark lists as completed if no pending/processing items remain
+    for (const listId of touchedListIds) {
+      const { count, error: countError } = await supabase
+        .from('validation_queue')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['pending', 'processing'])
+        .eq('validation_list_id', listId);
+
+      if (countError) {
+        console.error(`Error counting remaining items for list ${listId}:`, countError);
+        continue;
+      }
+
+      if ((count ?? 0) === 0) {
+        const { error: statusUpdateError } = await supabase
+          .from('validation_lists')
+          .update({ status: 'completed' })
+          .eq('id', listId)
+          .eq('status', 'processing');
+        if (statusUpdateError) {
+          console.error(`Error updating list status for ${listId}:`, statusUpdateError);
+        }
+      }
+    }
 
     return new Response(
       JSON.stringify({

@@ -164,6 +164,11 @@ const Validate = () => {
         description: `${emails.length} email in coda. Processamento parallelo attivo...`,
       });
 
+      // Avvia il worker una sola volta per processare la coda
+      supabase.functions.invoke("process-validation-queue", {
+        body: {},
+      }).catch(err => console.error('Worker trigger error:', err));
+
       await loadValidationHistory();
       toast({
         title: "In elaborazione",
