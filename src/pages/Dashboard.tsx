@@ -65,19 +65,11 @@ const Dashboard = () => {
 
       if (error) throw error;
 
-      if (data?.search_id) {
-        setCurrentSearchId(data.search_id);
-        const { data: contacts, error: contactsError } = await supabase
-          .from('contacts')
-          .select('*')
-          .eq('search_id', data.search_id);
-
-        if (contactsError) throw contactsError;
-
-        setSearchResults(contacts || []);
+      if (data?.contacts) {
+        setSearchResults(data.contacts);
         toast({
           title: "Ricerca completata",
-          description: `Trovati ${contacts?.length || 0} contatti`,
+          description: `Trovati ${data.contacts.length} contatti`,
         });
         
         loadData();
