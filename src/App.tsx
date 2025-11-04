@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import Search from "./pages/Search";
 import BatchManager from "./pages/BatchManager";
 import BatchDetails from "./pages/BatchDetails";
 import Contacts from "./pages/Contacts";
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
           <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
           <Route path="/searches" element={<ProtectedRoute><Searches /></ProtectedRoute>} />
           <Route path="/batch" element={<ProtectedRoute><BatchManager /></ProtectedRoute>} />
