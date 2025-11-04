@@ -6,7 +6,7 @@ import { Search, Mail, ArrowLeft, Zap, LogOut, CheckCircle } from "lucide-react"
 import logo from "@/assets/logo.png";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { SearchForm } from "@/components/SearchForm";
+import { AdvancedQueryBuilder } from "@/components/AdvancedQueryBuilder";
 import { ContactsTable } from "@/components/ContactsTable";
 
 
@@ -50,7 +50,7 @@ const Dashboard = () => {
     }
   };
 
-  const handleSearch = async (query: string, location?: string, pages: number = 1) => {
+  const handleSearch = async (searchParams: any) => {
     setIsSearching(true);
     setSearchResults([]);
     setCurrentSearchId(null);
@@ -60,7 +60,7 @@ const Dashboard = () => {
       if (!user) throw new Error("Utente non autenticato");
 
       const { data, error } = await supabase.functions.invoke('search-contacts', {
-        body: { query, location, pages }
+        body: searchParams
       });
 
       if (error) throw error;
@@ -119,12 +119,11 @@ const Dashboard = () => {
           <>
             {/* Single Search Section */}
             <div className="mb-12">
-              <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
-                <Search className="h-6 w-6 text-primary" />
-                Ricerca Singola
-              </h2>
               <div className="grid gap-6 lg:grid-cols-2">
-                <SearchForm onSearch={handleSearch} isLoading={isSearching} />
+                <AdvancedQueryBuilder 
+                  onQueryGenerated={(query) => console.log('Query generata:', query)}
+                  onSearch={handleSearch}
+                />
                 {(searchResults.length > 0 || isSearching) && (
                   <div className="lg:col-span-1">
                     <ContactsTable 
