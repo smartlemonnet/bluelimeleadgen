@@ -94,6 +94,16 @@ Deno.serve(async (req) => {
           .single();
 
         // Chiama search-contacts passando user_id nel body
+        const requestBody = {
+          query: job.query,
+          pages: job.pages,
+          location: job.location,
+          user_id: jobData?.user_id,
+          targetNames: job.target_names || [],
+        };
+        
+        console.log('📍 CALLING search-contacts with:', JSON.stringify(requestBody, null, 2));
+        
         const searchUrl = `${supabaseUrl}/functions/v1/search-contacts`;
         const searchResponse = await fetch(searchUrl, {
           method: 'POST',
@@ -101,13 +111,7 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${supabaseKey}`,
           },
-          body: JSON.stringify({
-            query: job.query,
-            pages: job.pages,
-            location: job.location, // Passa la località
-            user_id: jobData?.user_id, // Passa user_id esplicitamente
-            targetNames: job.target_names || [], // Passa i nomi target
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!searchResponse.ok) {
