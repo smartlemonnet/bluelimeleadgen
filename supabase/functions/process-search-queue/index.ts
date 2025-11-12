@@ -12,6 +12,7 @@ interface SearchJob {
   location: string | null;
   pages: number;
   target_names: string[] | null;
+  country: string | null; // 🌍 NEW: Country code (it, de, uk, etc.)
 }
 
 Deno.serve(async (req) => {
@@ -100,6 +101,7 @@ Deno.serve(async (req) => {
           location: job.location,
           user_id: jobData?.user_id,
           targetNames: job.target_names || [],
+          country: job.country || 'it', // 🌍 Pass country code (default: Italy)
         };
         
         console.log('📍 CALLING search-contacts with:', JSON.stringify(requestBody, null, 2));

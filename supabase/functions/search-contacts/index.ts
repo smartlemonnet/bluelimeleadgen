@@ -23,6 +23,7 @@ serve(async (req) => {
     const searchEngines = requestData.searchEngines || [];
     const targetNames = requestData.targetNames || [];
     const providedUserId = requestData.user_id; // From batch processor
+    const country = requestData.country || 'it'; // 🌍 Country code (default: Italy)
     
     if (!query) {
       throw new Error('Query is required');
@@ -134,18 +135,29 @@ serve(async (req) => {
 
       const safeLocation = sanitizeLocation(location);
 
+      // 🌍 Map country codes to full names for location formatting
+      const countryNames: Record<string, string> = {
+        'it': 'Italy',
+        'de': 'Germany',
+        'uk': 'United Kingdom',
+        'us': 'United States',
+        'fr': 'France',
+        'es': 'Spain',
+      };
+
       if (safeLocation) {
-        const alreadyHasCountry = /,/.test(safeLocation) || /\bitaly\b/i.test(safeLocation);
-        serperBody.location = alreadyHasCountry ? safeLocation : `${safeLocation}, Italy`;
-        serperBody.gl = 'it'; // Country code for Italy
-        serperBody.hl = 'it'; // Language Italian
+        const countryName = countryNames[country] || 'Italy';
+        const alreadyHasCountry = /,/.test(safeLocation) || new RegExp(`\\b${countryName}\\b`, 'i').test(safeLocation);
+        serperBody.location = alreadyHasCountry ? safeLocation : `${safeLocation}, ${countryName}`;
+        serperBody.gl = country; // Country code
+        serperBody.hl = country; // Language
         console.log(`\n=== GEO-TARGETING ENABLED ===`);
-        console.log(`Location: "${serperBody.location}" | gl=it | hl=it`);
+        console.log(`Location: "${serperBody.location}" | gl=${country} | hl=${country}`);
       } else {
-        serperBody.gl = 'it';
-        serperBody.hl = 'it';
+        serperBody.gl = country;
+        serperBody.hl = country;
         console.log(`\n=== DEFAULT GEO-TARGETING ===`);
-        console.log(`No specific location (using gl=it, hl=it for Italy-wide results)`);
+        console.log(`No specific location (using gl=${country}, hl=${country} for ${countryNames[country] || country}-wide results)`);
       }
       console.log(`Query sent to Serper: "${searchQuery}"`);
 
