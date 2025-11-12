@@ -119,20 +119,17 @@ serve(async (req) => {
       if (safeLocation) {
         const alreadyHasCountry = /,/.test(safeLocation) || /\bitaly\b/i.test(safeLocation);
         serperBody.location = alreadyHasCountry ? safeLocation : `${safeLocation}, Italy`;
-        serperBody.gl = 'it'; // Country code
-        serperBody.hl = 'it'; // Language
-        console.log(`\n=== A/B TEST: LOCATION PARAMETER ===`);
-        console.log(`Query: "${searchQuery}"`);
-        console.log(`Location param: "${serperBody.location}"`);
-        console.log(`gl=it, hl=it`);
+        serperBody.gl = 'it'; // Country code for Italy
+        serperBody.hl = 'it'; // Language Italian
+        console.log(`\n=== GEO-TARGETING ENABLED ===`);
+        console.log(`Location: "${serperBody.location}" | gl=it | hl=it`);
       } else {
         serperBody.gl = 'it';
         serperBody.hl = 'it';
-        console.log(`\n=== A/B TEST: NO LOCATION PARAMETER ===`);
-        console.log(`Query: "${searchQuery}"`);
-        console.log(`No location param (city might be in query text)`);
-        console.log(`gl=it, hl=it`);
+        console.log(`\n=== DEFAULT GEO-TARGETING ===`);
+        console.log(`No specific location (using gl=it, hl=it for Italy-wide results)`);
       }
+      console.log(`Query sent to Serper: "${searchQuery}"`);
 
       const serperResponse = await fetch('https://google.serper.dev/search', {
         method: 'POST',
