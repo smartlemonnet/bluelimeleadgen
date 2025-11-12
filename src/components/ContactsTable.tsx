@@ -140,7 +140,7 @@ export const ContactsTable = ({ contacts, isLoading }: ContactsTableProps) => {
                   <TableCell>
                     {contact.website ? (
                       <a
-                        href={contact.website}
+                        href={contact.website.startsWith('http') ? contact.website : `https://${contact.website}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 text-primary hover:underline"

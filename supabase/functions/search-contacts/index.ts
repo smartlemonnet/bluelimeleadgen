@@ -49,6 +49,24 @@ serve(async (req) => {
       console.log(`Enhanced query with names: ${searchQuery}`);
     }
     
+    // 🎯 INJECT LOCATION into query for better geo-targeting on social media
+    const sanitizeLocationForQuery = (loc: unknown): string | null => {
+      if (typeof loc !== 'string') return null;
+      let l = loc;
+      if (l.includes('|')) l = l.split('|')[0];
+      l = l.split('\t')[0];
+      l = l.replace(/\d+/g, '').trim();
+      if (!l) return null;
+      return l;
+    };
+    
+    const cityName = sanitizeLocationForQuery(location);
+    if (cityName) {
+      // Add city as both text and hashtag for social media platforms
+      searchQuery = `${searchQuery} ("${cityName}" OR #${cityName})`;
+      console.log(`🎯 Geo-targeting enhanced: injected city "${cityName}" into query`);
+    }
+    
     console.log('Final search query sent to Serper:', searchQuery);
 
     // Call Serper API
@@ -157,7 +175,7 @@ serve(async (req) => {
         });
       }
 
-      // Extract contacts from this page with filters
+      // Extract contacts from this page with filters (including city filtering)
       const pageContacts = await extractContactsFromResults(
         serperData, 
         searchId, 
@@ -166,7 +184,8 @@ serve(async (req) => {
         userId,
         emailProviders,
         websites,
-        targetNames
+        targetNames,
+        cityName // Pass city name for filtering
       );
       
       allContacts.push(...pageContacts);
@@ -209,13 +228,15 @@ async function extractContactsFromResults(
   userId: string | null,
   emailProviders: string[] = [],
   websites: string[] = [],
-  targetNames: string[] = []
+  targetNames: string[] = [],
+  cityFilter: string | null = null // 🎯 NEW: City filter for geo-targeting
 ) {
   const contacts: any[] = [];
   const results = serperData.organic || [];
   
   let fetchedPages = 0;
   let emailsFoundInHTML = 0;
+  let skippedByCityFilter = 0;
   
   for (const result of results) {
     const snippet = result.snippet || '';
@@ -223,6 +244,18 @@ async function extractContactsFromResults(
     const link = result.link || '';
     let text = `${title} ${snippet}`;
     let htmlFetched = false;
+
+    // 🎯 CITY FILTER: Skip results that don't mention the city (when cityFilter is set)
+    if (cityFilter) {
+      const textLower = text.toLowerCase();
+      const cityLower = cityFilter.toLowerCase();
+      const hasCityMention = textLower.includes(cityLower);
+      
+      if (!hasCityMention) {
+        skippedByCityFilter++;
+        continue; // Skip this result if city is not mentioned
+      }
+    }
 
     // Apply website filter if specified
     if (websites.length > 0) {
@@ -368,6 +401,9 @@ async function extractContactsFromResults(
 
   console.log(`\n=== EXTRACTION SUMMARY ===`);
   console.log(`Total organic results processed: ${results.length}`);
+  if (cityFilter) {
+    console.log(`🎯 Skipped by city filter (${cityFilter}): ${skippedByCityFilter}`);
+  }
   console.log(`HTML pages successfully fetched: ${fetchedPages}`);
   console.log(`Emails found in HTML content: ${emailsFoundInHTML}`);
   console.log(`Final contacts after filtering: ${contacts.length}`);
