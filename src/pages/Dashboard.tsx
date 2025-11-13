@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Mail, Zap, LogOut, CheckCircle } from "lucide-react";
+import { Search, Mail, Zap, LogOut, CheckCircle, BookOpen } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -74,7 +74,7 @@ const Dashboard = () => {
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <span className="text-secondary">→</span> Azioni Rapide
               </h2>
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-4">
                 <Button 
                   onClick={() => navigate('/search')}
                   size="lg"
@@ -90,6 +90,15 @@ const Dashboard = () => {
                 >
                   <Zap className="mr-3 h-6 w-6" />
                   Batch Manager
+                </Button>
+                <Button 
+                  onClick={() => navigate('/guide')}
+                  size="lg"
+                  variant="outline"
+                  className="h-24 text-lg font-semibold border-2"
+                >
+                  <BookOpen className="mr-3 h-6 w-6" />
+                  Guida Utente
                 </Button>
                 <Button 
                   onClick={() => window.open('https://mail-verifier-pro-inforetroplay.replit.app/', '_blank')}
