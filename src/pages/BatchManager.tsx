@@ -151,6 +151,7 @@ export default function BatchManager() {
           let location = parts[1] ? parts[1] : null;
           const pagesParsed = Number.parseInt(parts[2] || '');
           const targetNamesStr = parts[3] || '';
+          const country = parts[4] ? parts[4].trim() : 'it';
 
           // Se la location è vuota ma la query contiene un separatore (tab/;) con città alla fine, recuperala
           if (!location && /\t|;/.test(query)) {
@@ -167,6 +168,7 @@ export default function BatchManager() {
             location: location && location.length > 0 ? location : null,
             pages: Number.isFinite(pagesParsed) ? pagesParsed : 10,
             target_names: targetNamesStr ? targetNamesStr.split('|').map(n => n.trim()).filter(Boolean) : null,
+            country: country || 'it',
           };
         }).filter(j => j.query);
       }
