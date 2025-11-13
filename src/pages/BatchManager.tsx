@@ -453,6 +453,7 @@ export default function BatchManager() {
                       value={batchName}
                       onChange={(e) => setBatchName(e.target.value)}
                       className={!batchName.trim() ? "border-destructive/50" : "border-primary/50"}
+                      disabled={false}
                     />
                   </div>
                   <div className="space-y-2">
