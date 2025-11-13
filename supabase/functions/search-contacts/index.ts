@@ -177,7 +177,12 @@ serve(async (req) => {
 
       const serperData = await serperResponse.json();
       const resultCount = serperData.organic?.length || 0;
-      console.log(`Page ${page} results: ${resultCount} organic results`);
+      
+      // 📊 DETAILED LOGGING: Track Serper results
+      console.log(`\n📊 === PAGE ${page}/${numPages} RESULTS ===`);
+      console.log(`🔍 Serper returned: ${resultCount} organic results`);
+      console.log(`💰 Credits used: ${page} (total so far)`);
+      console.log(`📧 Contacts found so far: ${allContacts.length}`);
       
       // Log first 3 result URLs to verify geo-targeting
       if (serperData.organic?.length > 0) {
@@ -246,9 +251,14 @@ async function extractContactsFromResults(
   const contacts: any[] = [];
   const results = serperData.organic || [];
   
+  // 📊 METRICS TRACKING
   let fetchedPages = 0;
   let emailsFoundInHTML = 0;
   let skippedByCityFilter = 0;
+  let skippedByWebsiteFilter = 0;
+  let emailsFoundInSnippet = 0;
+  let filteredByTargetNames = 0;
+  let totalEmailsExtracted = 0;
   
   for (const result of results) {
     const snippet = result.snippet || '';
@@ -275,9 +285,11 @@ async function extractContactsFromResults(
         const linkDomain = new URL(link).hostname.replace('www.', '');
         const matchesDomain = websites.some(w => linkDomain.includes(w.replace('www.', '')));
         if (!matchesDomain) {
+          skippedByWebsiteFilter++;
           continue;
         }
       } catch (e) {
+        skippedByWebsiteFilter++;
         continue; // Skip invalid URLs
       }
     }
@@ -326,6 +338,9 @@ async function extractContactsFromResults(
     const emailRegex = /\b[A-Za-z0-9àèéìòùÀÈÉÌÒÙ][\w\.\-àèéìòùÀÈÉÌÒÙ]*@[A-Za-z0-9][\w\.\-]*\.[A-Za-z]{2,}\b/gi;
     const rawEmails = text.match(emailRegex) || [];
     
+    // Track emails found
+    totalEmailsExtracted += rawEmails.length;
+    
     // Filter out invalid emails (file paths, placeholders, etc)
     const invalidExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.woff', '.ttf', '.eot', '.ico'];
     const emails = rawEmails.filter(email => {
@@ -337,8 +352,11 @@ async function extractContactsFromResults(
       return true;
     });
     
+    // Track where emails come from
     if (htmlFetched && emails.length > 0) {
       emailsFoundInHTML += emails.length;
+    } else if (!htmlFetched && emails.length > 0) {
+      emailsFoundInSnippet += emails.length;
     }
 
     // Extract phone numbers (international format)
@@ -376,10 +394,9 @@ async function extractContactsFromResults(
       });
       
       if (!nameInEmail) {
-        console.log(`Skipping ${email} - target name not found (checked: ${targetNames.slice(0, 3).join(', ')}...)`);
+        filteredByTargetNames++;
         continue;
       }
-      console.log(`✓ Keeping ${email} - contains target name`);
     }
 
       const contact = {
@@ -411,16 +428,26 @@ async function extractContactsFromResults(
     }
   }
 
-  console.log(`\n=== EXTRACTION SUMMARY ===`);
-  console.log(`Total organic results processed: ${results.length}`);
+  console.log(`\n📊 === EXTRACTION SUMMARY ===`);
+  console.log(`🔍 Total organic results from Serper: ${results.length}`);
+  console.log(`\n🚫 FILTERING BREAKDOWN:`);
   if (cityFilter) {
-    console.log(`🎯 Skipped by city filter (${cityFilter}): ${skippedByCityFilter}`);
+    console.log(`  - Skipped by city filter ("${cityFilter}"): ${skippedByCityFilter}`);
   }
-  console.log(`HTML pages successfully fetched: ${fetchedPages}`);
-  console.log(`Emails found in HTML content: ${emailsFoundInHTML}`);
-  console.log(`Final contacts after filtering: ${contacts.length}`);
-  console.log(`Applied filters: ${targetNames.length > 0 ? `names (${targetNames.slice(0, 3).join(', ')}...)` : 'none'}`);
-  console.log(`HTML fetch rate: ${results.length > 0 ? Math.round((fetchedPages / results.length) * 100) : 0}%`);
+  if (websites.length > 0) {
+    console.log(`  - Skipped by website filter: ${skippedByWebsiteFilter}`);
+  }
+  console.log(`\n📧 EMAIL EXTRACTION:`);
+  console.log(`  - Total raw emails extracted: ${totalEmailsExtracted}`);
+  console.log(`  - From snippets only: ${emailsFoundInSnippet}`);
+  console.log(`  - From HTML fetches: ${emailsFoundInHTML} (${fetchedPages} pages fetched)`);
+  console.log(`  - Filtered by target names: ${filteredByTargetNames}`);
+  console.log(`\n✅ FINAL RESULTS:`);
+  console.log(`  - Valid unique contacts: ${contacts.length}`);
+  console.log(`  - Conversion rate: ${results.length > 0 ? ((contacts.length / results.length) * 100).toFixed(1) : 0}%`);
+  if (targetNames.length > 0) {
+    console.log(`  - Names filter active: ${targetNames.slice(0, 5).join(', ')}${targetNames.length > 5 ? '...' : ''}`);
+  }
   console.log(`========================\n`);
   return contacts;
 }
