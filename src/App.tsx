@@ -11,6 +11,7 @@ import BatchManager from "./pages/BatchManager";
 import BatchDetails from "./pages/BatchDetails";
 import Contacts from "./pages/Contacts";
 import Searches from "./pages/Searches";
+import UserGuide from "./pages/UserGuide";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/searches" element={<ProtectedRoute><Searches /></ProtectedRoute>} />
           <Route path="/batch" element={<ProtectedRoute><BatchManager /></ProtectedRoute>} />
           <Route path="/batch/:batchId" element={<ProtectedRoute><BatchDetails /></ProtectedRoute>} />
+          <Route path="/guide" element={<ProtectedRoute><UserGuide /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
