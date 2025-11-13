@@ -68,6 +68,12 @@ serve(async (req) => {
       console.log(`🎯 Geo-targeting enhanced: injected city "${cityName}" into query`);
     }
     
+    // 🇮🇹 FORCE ITALIAN RESULTS: When country=it and no city specified, add Italy to query
+    if (country === 'it' && !cityName) {
+      searchQuery = `${searchQuery} (Italy OR Italia)`;
+      console.log(`🇮🇹 Forcing Italian geo-targeting: added "Italy OR Italia" to query`);
+    }
+    
     console.log('Final search query sent to Serper:', searchQuery);
 
     // Call Serper API
@@ -259,6 +265,8 @@ async function extractContactsFromResults(
   let emailsFoundInSnippet = 0;
   let filteredByTargetNames = 0;
   let totalEmailsExtracted = 0;
+  let personalEmails = 0; // Gmail, Yahoo, Hotmail, etc.
+  let businessEmails = 0; // Domini aziendali
   
   for (const result of results) {
     const snippet = result.snippet || '';
@@ -366,11 +374,22 @@ async function extractContactsFromResults(
     for (const email of emails) {
       if (seenEmails.has(email.toLowerCase())) continue;
       
+      // 📧 CLASSIFY EMAIL TYPE: Personal vs Business
+      const emailDomain = email.split('@')[1]?.toLowerCase() || '';
+      const personalDomains = ['gmail.com', 'yahoo.com', 'yahoo.it', 'hotmail.com', 'hotmail.it', 'outlook.com', 'outlook.it', 'live.com', 'live.it', 'icloud.com', 'libero.it', 'virgilio.it', 'tiscali.it', 'tin.it'];
+      const isPersonalEmail = personalDomains.includes(emailDomain);
+      
+      if (isPersonalEmail) {
+        personalEmails++;
+      } else {
+        businessEmails++;
+      }
+      
       // Apply email provider filter if specified
       if (emailProviders.length > 0) {
-        const emailDomain = '@' + email.split('@')[1];
+        const emailDomainAt = '@' + emailDomain;
         const matchesProvider = emailProviders.some(provider => 
-          emailDomain.toLowerCase().includes(provider.toLowerCase().replace('@', ''))
+          emailDomainAt.includes(provider.toLowerCase().replace('@', ''))
         );
         if (!matchesProvider) {
           continue; // Skip this email if it doesn't match any specified provider
@@ -442,9 +461,13 @@ async function extractContactsFromResults(
   console.log(`  - From snippets only: ${emailsFoundInSnippet}`);
   console.log(`  - From HTML fetches: ${emailsFoundInHTML} (${fetchedPages} pages fetched)`);
   console.log(`  - Filtered by target names: ${filteredByTargetNames}`);
+  console.log(`\n📧 EMAIL TYPE BREAKDOWN:`);
+  console.log(`  - 👤 Personal emails (gmail, yahoo, etc.): ${personalEmails} (${contacts.length > 0 ? ((personalEmails / contacts.length) * 100).toFixed(1) : 0}%)`);
+  console.log(`  - 🏢 Business emails (custom domains): ${businessEmails} (${contacts.length > 0 ? ((businessEmails / contacts.length) * 100).toFixed(1) : 0}%)`);
   console.log(`\n✅ FINAL RESULTS:`);
   console.log(`  - Valid unique contacts: ${contacts.length}`);
   console.log(`  - Conversion rate: ${results.length > 0 ? ((contacts.length / results.length) * 100).toFixed(1) : 0}%`);
+  console.log(`  - Contacts per Serper credit: ${(contacts.length / 1).toFixed(2)}`);
   if (targetNames.length > 0) {
     console.log(`  - Names filter active: ${targetNames.slice(0, 5).join(', ')}${targetNames.length > 5 ? '...' : ''}`);
   }
