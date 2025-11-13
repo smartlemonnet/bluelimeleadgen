@@ -145,13 +145,25 @@ export default function BatchManager() {
           return out.map((t) => t.startsWith('"') && t.endsWith('"') ? t.slice(1, -1).replace(/""/g, '"') : t);
         };
 
-        jobs = linesArr.slice(1).map(line => {
-          const parts = parseLine(line, delimiter);
+        // Costruisci i job gestendo anche il caso in cui il country sia su una riga separata
+        const rows: any[] = [];
+        for (const line of linesArr.slice(1)) {
+          const parts = parseLine(line, delimiter).map(p => p.trim());
+
+          // Linee che contengono solo il country (es. "it" o ",it"): assegnale alla riga precedente
+          if (parts.length === 1 && parts[0]) {
+            const maybeCountry = parts[0].replace(/^,/, '').toLowerCase();
+            if (/^[a-z]{2}$/.test(maybeCountry) && rows.length > 0) {
+              rows[rows.length - 1].country = maybeCountry;
+              continue;
+            }
+          }
+
           let query = parts[0] || '';
           let location = parts[1] ? parts[1] : null;
           const pagesParsed = Number.parseInt(parts[2] || '');
           const targetNamesStr = parts[3] || '';
-          const country = parts[4] ? parts[4].trim() : 'it';
+          let country = (parts[4] || '').trim();
 
           // Se la location è vuota ma la query contiene un separatore (tab/;) con città alla fine, recuperala
           if (!location && /\t|;/.test(query)) {
@@ -163,14 +175,25 @@ export default function BatchManager() {
             }
           }
 
-          return {
+          // Se la riga è solo una country (es. ",it") non creare un job
+          if (/^,?([a-z]{2})$/i.test(query) && !parts[1] && !parts[2] && !parts[3]) {
+            const code = query.replace(/^,/, '').toLowerCase();
+            if (rows.length > 0) rows[rows.length - 1].country = code;
+            continue;
+          }
+
+          const job = {
             query,
             location: location && location.length > 0 ? location : null,
             pages: Number.isFinite(pagesParsed) ? pagesParsed : 10,
             target_names: targetNamesStr ? targetNamesStr.split('|').map(n => n.trim()).filter(Boolean) : null,
             country: country || 'it',
           };
-        }).filter(j => j.query);
+
+          rows.push(job);
+        }
+
+        jobs = rows.filter(j => j.query && j.query.length > 0);
       }
 
       // Get current user
