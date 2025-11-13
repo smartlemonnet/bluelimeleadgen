@@ -33,6 +33,7 @@ interface Job {
   result_count: number;
   executed_at: string | null;
   search_id: string | null;
+  actual_contact_count?: number; // Conteggio reale dal database
 }
 
 interface Contact {
@@ -85,7 +86,6 @@ export default function BatchDetails() {
         .order('created_at', { ascending: true });
 
       if (jobsError) throw jobsError;
-      setJobs(jobsData || []);
 
       // Load all contacts from completed jobs
       const completedSearchIds = (jobsData || [])
@@ -101,6 +101,23 @@ export default function BatchDetails() {
 
         if (contactsError) throw contactsError;
         setContacts(contactsData || []);
+
+        // Conta i contatti reali per ogni job
+        const contactCountsBySearchId = (contactsData || []).reduce((acc, contact) => {
+          if (contact.search_id) {
+            acc[contact.search_id] = (acc[contact.search_id] || 0) + 1;
+          }
+          return acc;
+        }, {} as Record<string, number>);
+
+        // Aggiorna i job con il conteggio reale
+        const jobsWithCounts = (jobsData || []).map(job => ({
+          ...job,
+          actual_contact_count: job.search_id ? (contactCountsBySearchId[job.search_id] || 0) : 0
+        }));
+        setJobs(jobsWithCounts);
+      } else {
+        setJobs(jobsData || []);
       }
 
     } catch (error: any) {
@@ -250,7 +267,7 @@ export default function BatchDetails() {
                     <TableCell>{job.pages}</TableCell>
                     <TableCell>{getStatusBadge(job.status)}</TableCell>
                     <TableCell className="text-right font-semibold">
-                      {job.result_count || 0}
+                      {job.actual_contact_count ?? 0}
                     </TableCell>
                   </TableRow>
                 ))}
