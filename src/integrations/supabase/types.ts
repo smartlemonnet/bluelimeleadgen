@@ -145,6 +145,7 @@ export type Database = {
       search_jobs: {
         Row: {
           batch_id: string
+          country: string | null
           created_at: string
           error_message: string | null
           executed_at: string | null
@@ -160,6 +161,7 @@ export type Database = {
         }
         Insert: {
           batch_id: string
+          country?: string | null
           created_at?: string
           error_message?: string | null
           executed_at?: string | null
@@ -175,6 +177,7 @@ export type Database = {
         }
         Update: {
           batch_id?: string
+          country?: string | null
           created_at?: string
           error_message?: string | null
           executed_at?: string | null
