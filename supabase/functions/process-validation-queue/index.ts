@@ -11,15 +11,14 @@ interface QueueItem {
   validation_list_id: string;
 }
 
-interface MailsSoResponse {
-  email: string;
-  format_valid: boolean;
-  domain_valid: boolean;
-  smtp_valid: boolean;
-  deliverable: boolean;
-  catch_all: boolean;
-  disposable: boolean;
-  free_email: boolean;
+interface TruelistResponse {
+  address: string;
+  domain: string;
+  canonical: string;
+  mx_record: string;
+  email_state: string; // "ok", "invalid", "risky"
+  email_sub_state: string;
+  verified_at: string;
 }
 
 Deno.serve(async (req) => {
@@ -33,9 +32,9 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const mailsSoApiKey = Deno.env.get('MAILS_SO_API_KEY');
-    if (!mailsSoApiKey) {
-      throw new Error('MAILS_SO_API_KEY not configured');
+    const truelistApiKey = Deno.env.get('TRUELIST_API_KEY');
+    if (!truelistApiKey) {
+      throw new Error('TRUELIST_API_KEY not configured');
     }
 
     // Process emails faster: larger batches + loop until empty or time limit
@@ -101,28 +100,42 @@ Deno.serve(async (req) => {
       const results = await Promise.allSettled(
         claimedItems.map(async (item: QueueItem) => {
           try {
-            // Call Mails.so API
-            const response = await fetch(`https://api.mails.so/v1/validate?email=${encodeURIComponent(item.email)}`, {
+            // Call Truelist.io API
+            const response = await fetch(`https://api.truelist.io/api/v1/verify_inline?email=${encodeURIComponent(item.email)}`, {
               headers: {
-                'x-mails-api-key': mailsSoApiKey,
+                'Authorization': truelistApiKey,
               },
             });
 
             if (!response.ok) {
-              throw new Error(`Mails.so API error: ${response.status}`);
+              throw new Error(`Truelist API error: ${response.status}`);
             }
 
-            const validationData: MailsSoResponse = await response.json();
+            const apiResponse = await response.json();
+            const validationData: TruelistResponse = apiResponse.emails?.[0];
 
-            // Normalize the outcome
+            if (!validationData) {
+              throw new Error('No validation data returned from Truelist');
+            }
+
+            // Normalize the outcome based on Truelist's email_state
             let result = 'unknown';
-            if (validationData.deliverable) {
+            if (validationData.email_state === 'ok') {
               result = 'deliverable';
-            } else if (validationData.disposable || !validationData.format_valid || !validationData.domain_valid) {
+            } else if (validationData.email_state === 'invalid') {
               result = 'undeliverable';
-            } else if (validationData.catch_all || !validationData.smtp_valid) {
+            } else if (validationData.email_state === 'risky') {
               result = 'risky';
             }
+
+            // Map Truelist fields to our database structure
+            const format_valid = validationData.email_state !== 'invalid';
+            const domain_valid = !!validationData.mx_record;
+            const smtp_valid = validationData.email_state === 'ok';
+            const deliverable = validationData.email_state === 'ok';
+            const catch_all = validationData.email_sub_state?.includes('catch_all') || false;
+            const disposable = validationData.email_sub_state?.includes('disposable') || false;
+            const free_email = validationData.email_sub_state?.includes('free') || false;
 
             // Save validation result
             const { error: insertError } = await supabase
@@ -131,13 +144,13 @@ Deno.serve(async (req) => {
                 validation_list_id: item.validation_list_id,
                 email: item.email,
                 result,
-                format_valid: validationData.format_valid,
-                domain_valid: validationData.domain_valid,
-                smtp_valid: validationData.smtp_valid,
-                deliverable: validationData.deliverable,
-                catch_all: validationData.catch_all,
-                disposable: validationData.disposable,
-                free_email: validationData.free_email,
+                format_valid,
+                domain_valid,
+                smtp_valid,
+                deliverable,
+                catch_all,
+                disposable,
+                free_email,
                 full_response: validationData,
               });
 
