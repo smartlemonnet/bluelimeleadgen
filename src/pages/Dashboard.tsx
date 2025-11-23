@@ -101,7 +101,7 @@ const Dashboard = () => {
                   Guida Utente
                 </Button>
                 <Button 
-                  onClick={() => window.open('https://mail-verifier-pro-inforetroplay.replit.app/', '_blank')}
+                  onClick={() => navigate('/validate')}
                   size="lg"
                   className="h-24 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-lg font-semibold relative overflow-hidden"
                 >
