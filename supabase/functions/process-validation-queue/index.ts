@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
             // Call Truelist.io API
             const response = await fetch(`https://api.truelist.io/api/v1/verify_inline?email=${encodeURIComponent(item.email)}`, {
               headers: {
-                'Authorization': truelistApiKey,
+                'Authorization': `Bearer ${truelistApiKey}`,
               },
             });
 
