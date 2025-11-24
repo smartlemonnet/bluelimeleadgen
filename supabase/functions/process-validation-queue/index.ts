@@ -11,14 +11,20 @@ interface QueueItem {
   validation_list_id: string;
 }
 
-interface TruelistResponse {
+interface TruelistEmailData {
   address: string;
   domain: string;
   canonical: string;
   mx_record: string;
-  email_state: string; // "ok", "invalid", "risky"
-  email_sub_state: string;
+  email_state: string; // "ok", "email_invalid", "risky"
+  email_sub_state: string; // "email_ok", "accept_all", "is_disposable"
   verified_at: string;
+}
+
+interface TruelistResponse {
+  emails: Array<{
+    email: TruelistEmailData;
+  }>;
 }
 
 Deno.serve(async (req) => {
@@ -100,10 +106,12 @@ Deno.serve(async (req) => {
       const results = await Promise.allSettled(
         claimedItems.map(async (item: QueueItem) => {
           try {
-            // Call Truelist.io API
+            // Call Truelist.io API with POST and email query parameter
             const response = await fetch(`https://api.truelist.io/api/v1/verify_inline?email=${encodeURIComponent(item.email)}`, {
+              method: 'POST',
               headers: {
                 'Authorization': `Bearer ${truelistApiKey}`,
+                'Content-Type': 'application/json',
               },
             });
 
@@ -111,31 +119,31 @@ Deno.serve(async (req) => {
               throw new Error(`Truelist API error: ${response.status}`);
             }
 
-            const apiResponse = await response.json();
-            const validationData: TruelistResponse = apiResponse.emails?.[0];
+            const apiResponse: TruelistResponse = await response.json();
+            const emailData = apiResponse.emails?.[0]?.email;
 
-            if (!validationData) {
+            if (!emailData) {
               throw new Error('No validation data returned from Truelist');
             }
 
             // Normalize the outcome based on Truelist's email_state
             let result = 'unknown';
-            if (validationData.email_state === 'ok') {
+            if (emailData.email_state === 'ok') {
               result = 'deliverable';
-            } else if (validationData.email_state === 'invalid') {
+            } else if (emailData.email_state === 'email_invalid') {
               result = 'undeliverable';
-            } else if (validationData.email_state === 'risky') {
+            } else if (emailData.email_state === 'risky') {
               result = 'risky';
             }
 
             // Map Truelist fields to our database structure
-            const format_valid = validationData.email_state !== 'invalid';
-            const domain_valid = !!validationData.mx_record;
-            const smtp_valid = validationData.email_state === 'ok';
-            const deliverable = validationData.email_state === 'ok';
-            const catch_all = validationData.email_sub_state?.includes('catch_all') || false;
-            const disposable = validationData.email_sub_state?.includes('disposable') || false;
-            const free_email = validationData.email_sub_state?.includes('free') || false;
+            const format_valid = emailData.email_state !== 'email_invalid';
+            const domain_valid = !!emailData.mx_record;
+            const smtp_valid = emailData.email_state === 'ok';
+            const deliverable = emailData.email_state === 'ok';
+            const catch_all = emailData.email_sub_state === 'accept_all';
+            const disposable = emailData.email_sub_state === 'is_disposable';
+            const free_email = emailData.email_sub_state?.includes('free') || false;
 
             // Save validation result
             const { error: insertError } = await supabase
@@ -151,7 +159,7 @@ Deno.serve(async (req) => {
                 catch_all,
                 disposable,
                 free_email,
-                full_response: validationData,
+                full_response: emailData,
               });
 
             if (insertError) {
@@ -194,6 +202,12 @@ Deno.serve(async (req) => {
                 processed_at: new Date().toISOString(),
               })
               .eq('id', item.id);
+
+            // Increment unknown count for failed validations
+            await supabase.rpc('increment_validation_counter', {
+              list_id: item.validation_list_id,
+              counter_name: 'unknown_count',
+            });
 
             return { success: false, item, error: String(error?.message ?? error) };
           }
