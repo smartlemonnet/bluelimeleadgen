@@ -102,117 +102,123 @@ Deno.serve(async (req) => {
       let succeeded = 0;
       let failed = 0;
 
-      // Process all claimed emails in parallel using Promise.allSettled
-      const results = await Promise.allSettled(
-        claimedItems.map(async (item: QueueItem) => {
-          try {
-            // Call Truelist.io API with POST and email query parameter
-            const response = await fetch(`https://api.truelist.io/api/v1/verify_inline?email=${encodeURIComponent(item.email)}`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${truelistApiKey}`,
-                'Content-Type': 'application/json',
-              },
-            });
+      // Process emails SEQUENTIALLY to respect Truelist rate limit (1 email/second)
+      const results: PromiseSettledResult<any>[] = [];
+      
+      for (let i = 0; i < claimedItems.length; i++) {
+        const item = claimedItems[i] as QueueItem;
+        try {
+          // Call Truelist.io API with POST and email query parameter
+          const response = await fetch(`https://api.truelist.io/api/v1/verify_inline?email=${encodeURIComponent(item.email)}`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${truelistApiKey}`,
+              'Content-Type': 'application/json',
+            },
+          });
 
-            if (!response.ok) {
-              throw new Error(`Truelist API error: ${response.status}`);
-            }
-
-            const apiResponse: TruelistResponse = await response.json();
-            const emailData = apiResponse.emails?.[0]?.email;
-
-            if (!emailData) {
-              throw new Error('No validation data returned from Truelist');
-            }
-
-            // Normalize the outcome based on Truelist's email_state
-            let result = 'unknown';
-            if (emailData.email_state === 'ok') {
-              result = 'deliverable';
-            } else if (emailData.email_state === 'email_invalid') {
-              result = 'undeliverable';
-            } else if (emailData.email_state === 'risky') {
-              result = 'risky';
-            }
-
-            // Map Truelist fields to our database structure
-            const format_valid = emailData.email_state !== 'email_invalid';
-            const domain_valid = !!emailData.mx_record;
-            const smtp_valid = emailData.email_state === 'ok';
-            const deliverable = emailData.email_state === 'ok';
-            const catch_all = emailData.email_sub_state === 'accept_all';
-            const disposable = emailData.email_sub_state === 'is_disposable';
-            const free_email = emailData.email_sub_state?.includes('free') || false;
-
-            // Save validation result
-            const { error: insertError } = await supabase
-              .from('validation_results')
-              .insert({
-                validation_list_id: item.validation_list_id,
-                email: item.email,
-                result,
-                format_valid,
-                domain_valid,
-                smtp_valid,
-                deliverable,
-                catch_all,
-                disposable,
-                free_email,
-                full_response: emailData,
-              });
-
-            if (insertError) {
-              console.error(`Error saving result for ${item.email}:`, insertError);
-              throw insertError;
-            }
-
-            // Mark queue item as completed
-            const { error: updateError } = await supabase
-              .from('validation_queue')
-              .update({ status: 'completed', processed_at: new Date().toISOString() })
-              .eq('id', item.id);
-
-            if (updateError) {
-              console.error(`Error updating queue item ${item.id}:`, updateError);
-              throw updateError;
-            }
-
-            // Update validation list counters
-            const counterField = `${result}_count`;
-            const { error: counterError } = await supabase.rpc('increment_validation_counter', {
-              list_id: item.validation_list_id,
-              counter_name: counterField,
-            });
-
-            if (counterError) {
-              console.error(`Error updating counter for ${item.validation_list_id}:`, counterError);
-            }
-
-            return { success: true, item, result };
-          } catch (error: any) {
-            console.error(`Failed to validate ${item.email}:`, error);
-
-            // Mark as failed in queue
-            await supabase
-              .from('validation_queue')
-              .update({
-                status: 'failed',
-                error_message: String(error?.message ?? error),
-                processed_at: new Date().toISOString(),
-              })
-              .eq('id', item.id);
-
-            // Increment unknown count for failed validations
-            await supabase.rpc('increment_validation_counter', {
-              list_id: item.validation_list_id,
-              counter_name: 'unknown_count',
-            });
-
-            return { success: false, item, error: String(error?.message ?? error) };
+          if (!response.ok) {
+            throw new Error(`Truelist API error: ${response.status}`);
           }
-        })
-      );
+
+          const apiResponse: TruelistResponse = await response.json();
+          const emailData = apiResponse.emails?.[0]?.email;
+
+          if (!emailData) {
+            throw new Error('No validation data returned from Truelist');
+          }
+
+          // Normalize the outcome based on Truelist's email_state
+          let result = 'unknown';
+          if (emailData.email_state === 'ok') {
+            result = 'deliverable';
+          } else if (emailData.email_state === 'email_invalid') {
+            result = 'undeliverable';
+          } else if (emailData.email_state === 'risky') {
+            result = 'risky';
+          }
+
+          // Map Truelist fields to our database structure
+          const format_valid = emailData.email_state !== 'email_invalid';
+          const domain_valid = !!emailData.mx_record;
+          const smtp_valid = emailData.email_state === 'ok';
+          const deliverable = emailData.email_state === 'ok';
+          const catch_all = emailData.email_sub_state === 'accept_all';
+          const disposable = emailData.email_sub_state === 'is_disposable';
+          const free_email = emailData.email_sub_state?.includes('free') || false;
+
+          // Save validation result
+          const { error: insertError } = await supabase
+            .from('validation_results')
+            .insert({
+              validation_list_id: item.validation_list_id,
+              email: item.email,
+              result,
+              format_valid,
+              domain_valid,
+              smtp_valid,
+              deliverable,
+              catch_all,
+              disposable,
+              free_email,
+              full_response: emailData,
+            });
+
+          if (insertError) {
+            console.error(`Error saving result for ${item.email}:`, insertError);
+            throw insertError;
+          }
+
+          // Mark queue item as completed
+          const { error: updateError } = await supabase
+            .from('validation_queue')
+            .update({ status: 'completed', processed_at: new Date().toISOString() })
+            .eq('id', item.id);
+
+          if (updateError) {
+            console.error(`Error updating queue item ${item.id}:`, updateError);
+            throw updateError;
+          }
+
+          // Update validation list counters
+          const counterField = `${result}_count`;
+          const { error: counterError } = await supabase.rpc('increment_validation_counter', {
+            list_id: item.validation_list_id,
+            counter_name: counterField,
+          });
+
+          if (counterError) {
+            console.error(`Error updating counter for ${item.validation_list_id}:`, counterError);
+          }
+
+          results.push({ status: 'fulfilled', value: { success: true, item, result } });
+        } catch (error: any) {
+          console.error(`Failed to validate ${item.email}:`, error);
+
+          // Mark as failed in queue
+          await supabase
+            .from('validation_queue')
+            .update({
+              status: 'failed',
+              error_message: String(error?.message ?? error),
+              processed_at: new Date().toISOString(),
+            })
+            .eq('id', item.id);
+
+          // Increment unknown count for failed validations
+          await supabase.rpc('increment_validation_counter', {
+            list_id: item.validation_list_id,
+            counter_name: 'unknown_count',
+          });
+
+          results.push({ status: 'fulfilled', value: { success: false, item, error: String(error?.message ?? error) } });
+        }
+        
+        // Wait 1.1 seconds between requests to respect Truelist rate limit (1 email/sec)
+        if (i < claimedItems.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1100));
+        }
+      }
 
       // Count successes and failures for this batch
       results.forEach((result: PromiseSettledResult<any>) => {
