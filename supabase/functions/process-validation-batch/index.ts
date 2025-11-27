@@ -23,15 +23,6 @@ interface TruelistBatchResult {
   annotated_csv_url?: string;
 }
 
-interface TruelistEmailResult {
-  address: string;
-  email_state: string; // "ok", "risky", "invalid", "unknown"
-  email_sub_state: string;
-  domain: string;
-  mx_record: string;
-  canonical: string;
-}
-
 // This function handles:
 // 1. Webhook from Truelist when batch completes
 // 2. Manual polling to check batch status and fetch results
@@ -174,8 +165,8 @@ async function processCompletedBatch(
     return;
   }
 
-  // Batch is complete - fetch results
-  console.log('Batch completed! Fetching results...');
+  // Batch is complete - fetch results using annotated_csv_url
+  console.log('Batch completed! Fetching results from annotated CSV...');
 
   // Update counts from batch summary
   await supabase
@@ -190,79 +181,160 @@ async function processCompletedBatch(
     })
     .eq('id', listId);
 
-  // Fetch detailed results
-  let page = 1;
-  const perPage = 100;
-  let hasMore = true;
+  // Use annotated_csv_url to get detailed results
+  if (!batchData.annotated_csv_url) {
+    console.log('No annotated_csv_url available, skipping detailed results');
+    return;
+  }
 
-  while (hasMore) {
-    const resultsResponse = await fetch(
-      `https://api.truelist.io/api/v1/emails?batch_uuid=${batchId}&page=${page}&per_page=${perPage}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${truelistApiKey}`,
-        },
-      }
-    );
+  console.log('Downloading annotated CSV from:', batchData.annotated_csv_url);
 
-    if (!resultsResponse.ok) {
-      console.error('Failed to fetch results page:', page, resultsResponse.status);
-      break;
-    }
-
-    const results = await resultsResponse.json();
+  try {
+    const csvResponse = await fetch(batchData.annotated_csv_url);
     
-    if (!results || !Array.isArray(results) || results.length === 0) {
-      hasMore = false;
-      break;
+    if (!csvResponse.ok) {
+      console.error('Failed to download annotated CSV:', csvResponse.status);
+      return;
     }
 
-    console.log(`Fetched page ${page} with ${results.length} results`);
+    const csvText = await csvResponse.text();
+    const lines = csvText.split('\n').filter(line => line.trim());
+    
+    if (lines.length < 2) {
+      console.log('CSV has no data rows');
+      return;
+    }
 
-    // Map results to our database format
-    const validationResults = results.map((email: any) => {
+    // Parse CSV header to find column indices
+    const header = parseCSVLine(lines[0]);
+    const emailIndex = header.findIndex(h => h.toLowerCase() === 'email' || h.toLowerCase() === 'address');
+    const stateIndex = header.findIndex(h => h.toLowerCase() === 'email_state' || h.toLowerCase() === 'state' || h.toLowerCase() === 'result');
+    const subStateIndex = header.findIndex(h => h.toLowerCase() === 'email_sub_state' || h.toLowerCase() === 'sub_state' || h.toLowerCase() === 'reason');
+
+    console.log(`CSV columns - email: ${emailIndex}, state: ${stateIndex}, subState: ${subStateIndex}`);
+    console.log('Header row:', header);
+
+    // If standard columns not found, assume last column is the validation result
+    const resultColumnIndex = stateIndex !== -1 ? stateIndex : header.length - 1;
+    const emailColumnIndex = emailIndex !== -1 ? emailIndex : 0;
+
+    const validationResults: any[] = [];
+    
+    // Process data rows
+    for (let i = 1; i < lines.length; i++) {
+      const row = parseCSVLine(lines[i]);
+      if (row.length < 2) continue;
+
+      const email = row[emailColumnIndex]?.trim();
+      if (!email || !email.includes('@')) continue;
+
+      // Parse the validation result - could be in different formats
+      const stateValue = row[resultColumnIndex]?.trim().toLowerCase() || '';
+      const subStateValue = subStateIndex !== -1 ? row[subStateIndex]?.trim().toLowerCase() : '';
+
       let result = 'unknown';
-      if (email.email_state === 'ok') {
+      let formatValid = true;
+      let domainValid = true;
+      let smtpValid = false;
+      let deliverable = false;
+      let catchAll = false;
+      let disposable = false;
+
+      // Map Truelist states to our format
+      if (stateValue === 'ok' || stateValue === 'deliverable' || stateValue === 'valid') {
         result = 'deliverable';
-      } else if (email.email_state === 'invalid') {
+        smtpValid = true;
+        deliverable = true;
+      } else if (stateValue === 'invalid' || stateValue === 'undeliverable') {
         result = 'undeliverable';
-      } else if (email.email_state === 'risky') {
+      } else if (stateValue === 'risky') {
+        result = 'risky';
+      } else if (stateValue === 'unknown') {
+        result = 'unknown';
+      }
+
+      // Check sub-states for more detail
+      if (subStateValue.includes('syntax') || subStateValue.includes('failed_syntax')) {
+        formatValid = false;
+        result = 'undeliverable';
+      }
+      if (subStateValue.includes('mx') || subStateValue.includes('failed_mx')) {
+        domainValid = false;
+        result = 'undeliverable';
+      }
+      if (subStateValue.includes('accept_all') || subStateValue.includes('ok_for_all') || subStateValue.includes('catch_all')) {
+        catchAll = true;
+        result = 'risky';
+      }
+      if (subStateValue.includes('disposable')) {
+        disposable = true;
         result = 'risky';
       }
 
-      return {
+      validationResults.push({
         validation_list_id: listId,
-        email: email.address || email.email,
+        email,
         result,
-        format_valid: email.email_sub_state !== 'failed_syntax_check',
-        domain_valid: email.email_sub_state !== 'failed_mx_check',
-        smtp_valid: email.email_state === 'ok',
-        deliverable: email.email_state === 'ok',
-        catch_all: email.email_sub_state === 'ok_for_all' || email.email_sub_state === 'accept_all',
-        disposable: email.email_sub_state === 'is_disposable',
-        free_email: false, // Truelist doesn't provide this directly
-        full_response: email,
-      };
-    });
-
-    // Insert results in batches
-    const { error: insertError } = await supabase
-      .from('validation_results')
-      .insert(validationResults);
-
-    if (insertError) {
-      console.error('Error inserting results:', insertError);
+        reason: subStateValue || stateValue,
+        format_valid: formatValid,
+        domain_valid: domainValid,
+        smtp_valid: smtpValid,
+        deliverable,
+        catch_all: catchAll,
+        disposable,
+        free_email: false,
+        full_response: { state: stateValue, sub_state: subStateValue, row: row },
+      });
     }
 
-    if (results.length < perPage) {
-      hasMore = false;
-    } else {
-      page++;
+    console.log(`Parsed ${validationResults.length} results from CSV`);
+
+    // Insert results in batches of 100
+    const batchSize = 100;
+    for (let i = 0; i < validationResults.length; i += batchSize) {
+      const batch = validationResults.slice(i, i + batchSize);
+      const { error: insertError } = await supabase
+        .from('validation_results')
+        .insert(batch);
+
+      if (insertError) {
+        console.error(`Error inserting batch ${i / batchSize + 1}:`, insertError);
+      } else {
+        console.log(`Inserted batch ${i / batchSize + 1} (${batch.length} results)`);
+      }
     }
 
-    // Small delay between pages to avoid rate limits
-    await new Promise(resolve => setTimeout(resolve, 200));
+    console.log(`Finished processing batch ${batchId}`);
+
+  } catch (csvError) {
+    console.error('Error processing annotated CSV:', csvError);
   }
+}
 
-  console.log(`Finished processing batch ${batchId}`);
+// Simple CSV line parser that handles quoted fields
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  
+  result.push(current.trim());
+  return result;
 }
