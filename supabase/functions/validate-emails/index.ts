@@ -11,18 +11,10 @@ interface ValidationRequest {
   listName: string;
 }
 
-interface MailsSoResponse {
-  email: string;
-  result: string;
-  score: number;
-  isv_format: boolean;
-  isv_domain: boolean;
-  isv_smtp: boolean;
-  catch_all: boolean;
-  disposable: boolean;
-  free_email: boolean;
-  reason?: string;
-  mx_record?: string;
+interface TruelistBatchResponse {
+  id: string;
+  batch_state: string;
+  email_count: number;
 }
 
 serve(async (req) => {
@@ -31,7 +23,6 @@ serve(async (req) => {
   }
 
   try {
-    // Get the authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       console.error('No authorization header provided');
@@ -54,18 +45,10 @@ serve(async (req) => {
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
     
-    if (authError) {
+    if (authError || !user) {
       console.error('Auth error:', authError);
       return new Response(
-        JSON.stringify({ error: `Authentication failed: ${authError.message}` }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!user) {
-      console.error('No user found');
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized - No user' }),
+        JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -73,15 +56,19 @@ serve(async (req) => {
     console.log(`User authenticated: ${user.id}`);
 
     const { emails, listName }: ValidationRequest = await req.json();
-    console.log(`Starting validation for ${emails.length} emails`);
+    console.log(`Starting batch validation for ${emails.length} emails`);
 
-    // Use service role to bypass RLS for queue operations
+    const truelistApiKey = Deno.env.get('TRUELIST_API_KEY');
+    if (!truelistApiKey) {
+      throw new Error('TRUELIST_API_KEY not configured');
+    }
+
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Create validation list
+    // Create validation list in our database
     const { data: validationList, error: listError } = await supabaseClient
       .from('validation_lists')
       .insert({
@@ -95,29 +82,65 @@ serve(async (req) => {
 
     if (listError) throw listError;
 
-    // Add emails to validation queue for parallel processing
-    const queueItems = emails.map(email => ({
-      validation_list_id: validationList.id,
-      email: email,
-      status: 'pending'
-    }));
+    console.log('Created validation list:', validationList.id);
 
-    const { error: queueError } = await supabaseAdmin
-      .from('validation_queue')
-      .insert(queueItems);
+    // Prepare data for Truelist Batch API
+    // Format: array of arrays with email in each row
+    const emailData = emails.map(email => [email.trim().toLowerCase()]);
+    
+    // Create batch on Truelist using their Batch API
+    const formData = new FormData();
+    formData.append('data', JSON.stringify(emailData));
+    
+    // Use webhook to get notified when batch completes
+    const webhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/process-validation-batch?list_id=${validationList.id}`;
+    formData.append('webhook_url', webhookUrl);
 
-    if (queueError) {
-      console.error('Error adding to queue:', queueError);
-      throw queueError;
+    console.log('Creating Truelist batch with webhook:', webhookUrl);
+
+    const truelistResponse = await fetch('https://api.truelist.io/api/v1/batches', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${truelistApiKey}`,
+      },
+      body: formData,
+    });
+
+    if (!truelistResponse.ok) {
+      const errorText = await truelistResponse.text();
+      console.error('Truelist batch creation failed:', truelistResponse.status, errorText);
+      
+      // Update list status to failed
+      await supabaseAdmin
+        .from('validation_lists')
+        .update({ status: 'failed' })
+        .eq('id', validationList.id);
+        
+      throw new Error(`Truelist API error: ${truelistResponse.status} - ${errorText}`);
     }
 
-    console.log(`Added ${emails.length} emails to validation queue`);
+    const batchData: TruelistBatchResponse = await truelistResponse.json();
+    console.log('Truelist batch created:', batchData.id, 'state:', batchData.batch_state);
+
+    // Store Truelist batch ID for tracking
+    const { error: updateError } = await supabaseAdmin
+      .from('validation_lists')
+      .update({ 
+        truelist_batch_id: batchData.id,
+        status: 'processing'
+      })
+      .eq('id', validationList.id);
+
+    if (updateError) {
+      console.error('Error updating list with batch ID:', updateError);
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
         list_id: validationList.id,
-        message: `Validation started for ${emails.length} emails. Processing in background...`
+        truelist_batch_id: batchData.id,
+        message: `Batch created for ${emails.length} emails. Truelist will process in background.`,
       }),
       {
         status: 200,
