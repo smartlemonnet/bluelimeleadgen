@@ -256,11 +256,11 @@ async function processCompletedBatch(
       // Map Truelist states to our format
       // Truelist uses: ok, invalid, unknown, risky
       // Sub-states: email_ok, failed_syntax_check, failed_mx_check, failed_no_mailbox, ok_for_all, disposable
-      if (stateValue === 'ok' || stateValue === 'deliverable' || stateValue === 'valid') {
+      if (stateValue === 'ok' || stateValue === 'deliverable' || stateValue === 'valid' || stateValue === 'email_ok') {
         result = 'deliverable';
         smtpValid = true;
         deliverable = true;
-      } else if (stateValue === 'invalid' || stateValue === 'undeliverable') {
+      } else if (stateValue === 'invalid' || stateValue === 'undeliverable' || stateValue === 'email_invalid') {
         result = 'undeliverable';
       } else if (stateValue === 'risky') {
         result = 'risky';
@@ -269,10 +269,12 @@ async function processCompletedBatch(
       }
       
       // Also check sub_state for more accurate categorization
-      if (subStateValue === 'email_ok') {
+      if (subStateValue === 'email_ok' || subStateValue === 'ok') {
         result = 'deliverable';
         smtpValid = true;
         deliverable = true;
+      } else if (subStateValue === 'email_invalid' || subStateValue === 'invalid') {
+        result = 'undeliverable';
       }
 
       // Check sub-states for more detail
