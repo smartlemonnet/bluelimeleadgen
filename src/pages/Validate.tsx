@@ -153,27 +153,54 @@ const Validate = () => {
     setIsValidating(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("validate-emails", {
+      // Call new simplified validation function
+      const { data, error } = await supabase.functions.invoke("validate-batch", {
         body: { emails, listName },
       });
 
       if (error) throw error;
 
+      const listId = data.list_id;
+
       toast({
         title: "✅ Validazione avviata",
-        description: `${emails.length} email in coda. Processamento parallelo attivo...`,
+        description: `Batch di ${emails.length} email creato su Truelist. Controllo stato in corso...`,
       });
 
-      // Avvia il worker una sola volta per processare la coda
-      supabase.functions.invoke("process-validation-queue", {
-        body: {},
-      }).catch(err => console.error('Worker trigger error:', err));
+      // Start polling for status
+      const pollInterval = setInterval(async () => {
+        try {
+          const { data: statusData, error: statusError } = await supabase.functions.invoke(
+            `check-validation-status?list_id=${listId}`,
+            { method: "GET" }
+          );
+
+          if (statusError) {
+            console.error('Status check error:', statusError);
+            return;
+          }
+
+          if (statusData.status === 'completed') {
+            clearInterval(pollInterval);
+            toast({
+              title: "🎉 Validazione completata!",
+              description: `${statusData.deliverable_count} email valide, ${statusData.undeliverable_count} non valide`,
+            });
+            await loadValidationHistory();
+            setIsValidating(false);
+          }
+        } catch (err) {
+          console.error('Polling error:', err);
+        }
+      }, 5000); // Poll every 5 seconds
+
+      // Stop polling after 10 minutes
+      setTimeout(() => {
+        clearInterval(pollInterval);
+        setIsValidating(false);
+      }, 600000);
 
       await loadValidationHistory();
-      toast({
-        title: "In elaborazione",
-        description: "Apri la lista dalla sezione 'Le Mie Liste' per seguire l'avanzamento.",
-      });
       setEmails([]);
       setListName("");
     } catch (error: any) {
@@ -182,7 +209,6 @@ const Validate = () => {
         description: error.message,
         variant: "destructive",
       });
-    } finally {
       setIsValidating(false);
     }
   };
