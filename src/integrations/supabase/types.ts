@@ -242,6 +242,7 @@ export type Database = {
           risky_count: number
           status: string
           total_emails: number
+          truelist_batch_id: string | null
           undeliverable_count: number
           unknown_count: number
           updated_at: string
@@ -256,6 +257,7 @@ export type Database = {
           risky_count?: number
           status?: string
           total_emails?: number
+          truelist_batch_id?: string | null
           undeliverable_count?: number
           unknown_count?: number
           updated_at?: string
@@ -270,6 +272,7 @@ export type Database = {
           risky_count?: number
           status?: string
           total_emails?: number
+          truelist_batch_id?: string | null
           undeliverable_count?: number
           unknown_count?: number
           updated_at?: string
