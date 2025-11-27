@@ -207,16 +207,29 @@ async function processCompletedBatch(
 
     // Parse CSV header to find column indices
     const header = parseCSVLine(lines[0]);
-    const emailIndex = header.findIndex(h => h.toLowerCase() === 'email' || h.toLowerCase() === 'address');
-    const stateIndex = header.findIndex(h => h.toLowerCase() === 'email_state' || h.toLowerCase() === 'state' || h.toLowerCase() === 'result');
-    const subStateIndex = header.findIndex(h => h.toLowerCase() === 'email_sub_state' || h.toLowerCase() === 'sub_state' || h.toLowerCase() === 'reason');
+    const headerLower = header.map(h => h.toLowerCase().trim());
+    
+    // Find email column - check multiple possible names
+    const emailIndex = headerLower.findIndex(h => 
+      h === 'email' || h === 'email address' || h === 'address'
+    );
+    
+    // Find state column - check multiple possible names
+    const stateIndex = headerLower.findIndex(h => 
+      h === 'email state' || h === 'email_state' || h === 'state' || h === 'result'
+    );
+    
+    // Find sub-state column
+    const subStateIndex = headerLower.findIndex(h => 
+      h === 'email sub-state' || h === 'email_sub_state' || h === 'sub_state' || h === 'sub-state' || h === 'reason'
+    );
 
     console.log(`CSV columns - email: ${emailIndex}, state: ${stateIndex}, subState: ${subStateIndex}`);
     console.log('Header row:', header);
 
-    // If standard columns not found, assume last column is the validation result
-    const resultColumnIndex = stateIndex !== -1 ? stateIndex : header.length - 1;
-    const emailColumnIndex = emailIndex !== -1 ? emailIndex : 0;
+    // If standard columns not found, use reasonable defaults
+    const emailColumnIndex = emailIndex !== -1 ? emailIndex : 1; // Usually column 1 is email
+    const resultColumnIndex = stateIndex !== -1 ? stateIndex : 3; // Usually column 3 is state
 
     const validationResults: any[] = [];
     
@@ -241,6 +254,8 @@ async function processCompletedBatch(
       let disposable = false;
 
       // Map Truelist states to our format
+      // Truelist uses: ok, invalid, unknown, risky
+      // Sub-states: email_ok, failed_syntax_check, failed_mx_check, failed_no_mailbox, ok_for_all, disposable
       if (stateValue === 'ok' || stateValue === 'deliverable' || stateValue === 'valid') {
         result = 'deliverable';
         smtpValid = true;
@@ -251,6 +266,13 @@ async function processCompletedBatch(
         result = 'risky';
       } else if (stateValue === 'unknown') {
         result = 'unknown';
+      }
+      
+      // Also check sub_state for more accurate categorization
+      if (subStateValue === 'email_ok') {
+        result = 'deliverable';
+        smtpValid = true;
+        deliverable = true;
       }
 
       // Check sub-states for more detail
