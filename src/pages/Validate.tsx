@@ -230,6 +230,9 @@ const Validate = () => {
     if (status === "pending") {
       return <Badge className="bg-slate-500/20 text-slate-400 border-slate-500/30">In attesa</Badge>;
     }
+    if (status === "failed") {
+      return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Fallita</Badge>;
+    }
     return <Badge variant="secondary">{status}</Badge>;
   };
 
