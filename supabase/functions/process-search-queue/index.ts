@@ -79,6 +79,9 @@ Deno.serve(async (req) => {
 
       const job: SearchJob = jobs[0];
       console.log(`Processing job: ${job.id} - ${job.query}`);
+      
+      // Use batch name for the validation list
+      const batchName = batch.name;
 
       // Marca il job come running
       await supabase
@@ -94,7 +97,7 @@ Deno.serve(async (req) => {
           .eq('id', job.id)
           .single();
 
-        // Chiama search-contacts passando user_id nel body
+        // Chiama search-contacts passando user_id nel body e batch_name per la validation list
         const requestBody = {
           query: job.query,
           pages: job.pages,
@@ -102,6 +105,7 @@ Deno.serve(async (req) => {
           user_id: jobData?.user_id,
           targetNames: job.target_names || [],
           country: job.country || 'it', // 🌍 Pass country code (default: Italy)
+          batch_name: batchName, // Nome del batch per la validation list
         };
         
         console.log('📍 CALLING search-contacts with:', JSON.stringify(requestBody, null, 2));
