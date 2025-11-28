@@ -102,6 +102,8 @@ serve(async (req) => {
 
     // Save search to database if user is authenticated
     let searchId: string | null = null;
+    let listId: string | null = null;
+    
     if (userId) {
       const { data: searchData, error: searchError } = await supabase
         .from('searches')
@@ -113,6 +115,25 @@ serve(async (req) => {
         console.error('Error saving search:', searchError);
       } else {
         searchId = searchData.id;
+        
+        // Create validation list for this search (status='unvalidated')
+        const { data: listData, error: listError } = await supabase
+          .from('validation_lists')
+          .insert({
+            name: `Search: ${query.substring(0, 50)}${query.length > 50 ? '...' : ''}`,
+            user_id: userId,
+            status: 'unvalidated',
+            total_emails: 0,
+          })
+          .select()
+          .single();
+          
+        if (listError) {
+          console.error('Error creating validation list:', listError);
+        } else {
+          listId = listData.id;
+          console.log(`Created validation list: ${listId} for search: ${searchId}`);
+        }
       }
     }
     const allContacts: any[] = [];
@@ -202,6 +223,7 @@ serve(async (req) => {
       const pageContacts = await extractContactsFromResults(
         serperData, 
         searchId, 
+        listId,
         seenEmails,
         supabase,
         userId,
@@ -217,8 +239,17 @@ serve(async (req) => {
 
     console.log(`Total extracted ${allContacts.length} unique contacts from ${numPages} pages`);
 
+    // Update validation list with total emails count
+    if (listId && allContacts.length > 0) {
+      await supabase
+        .from('validation_lists')
+        .update({ total_emails: allContacts.length })
+        .eq('id', listId);
+      console.log(`Updated validation list ${listId} with ${allContacts.length} emails`);
+    }
+
     return new Response(
-      JSON.stringify({ contacts: allContacts }),
+      JSON.stringify({ contacts: allContacts, list_id: listId }),
       { 
         headers: { 
           ...corsHeaders,
@@ -246,6 +277,7 @@ serve(async (req) => {
 async function extractContactsFromResults(
   serperData: any, 
   searchId: string | null, 
+  listId: string | null,
   seenEmails: Set<string>,
   supabase: any,
   userId: string | null,
@@ -431,7 +463,7 @@ async function extractContactsFromResults(
       if (userId && searchId) {
         const { data: contactData, error: contactError } = await supabase
           .from('contacts')
-          .insert({ ...contact, search_id: searchId })
+          .insert({ ...contact, search_id: searchId, list_id: listId })
           .select()
           .single();
 

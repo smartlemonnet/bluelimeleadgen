@@ -19,6 +19,7 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          list_id: string | null
           name: string | null
           organization: string | null
           phone: string | null
@@ -30,6 +31,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          list_id?: string | null
           name?: string | null
           organization?: string | null
           phone?: string | null
@@ -41,6 +43,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          list_id?: string | null
           name?: string | null
           organization?: string | null
           phone?: string | null
@@ -49,6 +52,13 @@ export type Database = {
           website?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "contacts_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "validation_lists"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "contacts_search_id_fkey"
             columns: ["search_id"]
