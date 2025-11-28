@@ -24,6 +24,7 @@ serve(async (req) => {
     const targetNames = requestData.targetNames || [];
     const providedUserId = requestData.user_id; // From batch processor
     const country = requestData.country || 'it'; // 🌍 Country code (default: Italy)
+    const batchName = requestData.batch_name; // Nome del batch per validation list
     
     if (!query) {
       throw new Error('Query is required');
@@ -117,10 +118,15 @@ serve(async (req) => {
         searchId = searchData.id;
         
         // Create validation list for this search (status='unvalidated')
+        // Use batch_name if provided, otherwise generate from query
+        const listName = batchName 
+          ? `Batch: ${batchName}` 
+          : `Search: ${query.substring(0, 50)}${query.length > 50 ? '...' : ''}`;
+          
         const { data: listData, error: listError } = await supabase
           .from('validation_lists')
           .insert({
-            name: `Search: ${query.substring(0, 50)}${query.length > 50 ? '...' : ''}`,
+            name: listName,
             user_id: userId,
             status: 'unvalidated',
             total_emails: 0,

@@ -219,7 +219,16 @@ const Validate = () => {
 
   const getStatusBadge = (status: string) => {
     if (status === "completed") {
-      return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Completed</Badge>;
+      return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Completata</Badge>;
+    }
+    if (status === "unvalidated") {
+      return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Da validare</Badge>;
+    }
+    if (status === "processing") {
+      return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">In corso...</Badge>;
+    }
+    if (status === "pending") {
+      return <Badge className="bg-slate-500/20 text-slate-400 border-slate-500/30">In attesa</Badge>;
     }
     return <Badge variant="secondary">{status}</Badge>;
   };
@@ -398,10 +407,14 @@ const Validate = () => {
                   <Button
                     size="sm"
                     onClick={() => navigate(`/validate/${list.id}`)}
-                    className="bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-600/30"
+                    className={
+                      list.status === "unvalidated"
+                        ? "bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-600/30"
+                        : "bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-600/30"
+                    }
                   >
                     <Search className="mr-2 h-4 w-4" />
-                    Vedi risultati
+                    {list.status === "unvalidated" ? "Valida" : "Vedi risultati"}
                   </Button>
                 </div>
               ))}
