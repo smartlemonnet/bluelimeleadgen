@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Download, FileText } from "lucide-react";
+import { ArrowLeft, Download, FileText, Play, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 import {
@@ -87,6 +87,7 @@ const ValidationResults = () => {
   const [list, setList] = useState<ValidationList | null>(null);
   const [results, setResults] = useState<ValidationResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isStartingValidation, setIsStartingValidation] = useState(false);
 
   useEffect(() => {
     if (listId) {
@@ -162,6 +163,66 @@ const ValidationResults = () => {
       title: "Export completato",
       description: `${dataToExport.length} email esportate`,
     });
+  };
+
+  const startValidation = async () => {
+    if (!list || !listId) return;
+    
+    setIsStartingValidation(true);
+    
+    try {
+      // Get emails from contacts linked to this list
+      const { data: contacts, error: contactsError } = await supabase
+        .from("contacts")
+        .select("email")
+        .eq("list_id", listId)
+        .not("email", "is", null);
+
+      if (contactsError) throw contactsError;
+
+      const emails = contacts
+        ?.map(c => c.email)
+        .filter((email): email is string => !!email) || [];
+
+      if (emails.length === 0) {
+        toast({
+          title: "Nessuna email",
+          description: "Non ci sono email da validare in questa lista",
+          variant: "destructive",
+        });
+        setIsStartingValidation(false);
+        return;
+      }
+
+      // Call validate-batch with existing list
+      const { data, error } = await supabase.functions.invoke("validate-batch", {
+        body: { 
+          emails, 
+          listName: list.name,
+          existingListId: listId 
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "✅ Validazione avviata",
+        description: `${emails.length} email inviate a Truelist per la validazione`,
+      });
+
+      // Reload data to show processing status
+      await loadData(true);
+
+    } catch (error: any) {
+      console.error("Error starting validation:", error);
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile avviare la validazione",
+        variant: "destructive",
+      });
+    } finally {
+      setIsStartingValidation(false);
+    }
   };
 
   if (loading || !list) {
@@ -261,21 +322,43 @@ const ValidationResults = () => {
           </div>
           
           <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={() => exportResults(false)}
-              className="bg-slate-800/50 border-slate-600 hover:bg-slate-700 text-slate-200"
-            >
-              <FileText className="mr-2 h-4 w-4" />
-              File originale
-            </Button>
-            <Button
-              onClick={() => exportResults(true)}
-              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-lg shadow-emerald-500/30"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Scarica risultati
-            </Button>
+            {list.status === "unvalidated" ? (
+              <Button
+                onClick={startValidation}
+                disabled={isStartingValidation}
+                className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/30"
+              >
+                {isStartingValidation ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Avvio in corso...
+                  </>
+                ) : (
+                  <>
+                    <Play className="mr-2 h-4 w-4" />
+                    Avvia Validazione
+                  </>
+                )}
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => exportResults(false)}
+                  className="bg-slate-800/50 border-slate-600 hover:bg-slate-700 text-slate-200"
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  File originale
+                </Button>
+                <Button
+                  onClick={() => exportResults(true)}
+                  className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-lg shadow-emerald-500/30"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Scarica risultati
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
