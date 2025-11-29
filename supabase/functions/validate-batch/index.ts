@@ -9,6 +9,7 @@ const corsHeaders = {
 interface ValidationRequest {
   emails: string[];
   listName: string;
+  existingListId?: string;
 }
 
 interface TruelistBatchResponse {
@@ -50,7 +51,7 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const { emails, listName }: ValidationRequest = await req.json();
+    const { emails, listName, existingListId }: ValidationRequest = await req.json();
     
     if (!emails || emails.length === 0) {
       return new Response(
@@ -67,34 +68,62 @@ serve(async (req) => {
       throw new Error('TRUELIST_API_KEY not configured');
     }
 
-    // Create validation list in database
+    // Create or update validation list in database
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { data: validationList, error: listError } = await supabaseAdmin
-      .from('validation_lists')
-      .insert({
-        name: listName || `Validation ${new Date().toISOString()}`,
-        user_id: user.id,
-        total_emails: emails.length,
-        status: 'processing',
-        processed_emails: 0,
-        deliverable_count: 0,
-        undeliverable_count: 0,
-        risky_count: 0,
-        unknown_count: 0,
-      })
-      .select()
-      .single();
+    let validationListId: string;
 
-    if (listError) {
-      console.error('Error creating validation list:', listError);
-      throw new Error('Failed to create validation list');
+    if (existingListId) {
+      // Update existing list
+      const { error: updateError } = await supabaseAdmin
+        .from('validation_lists')
+        .update({
+          status: 'processing',
+          total_emails: emails.length,
+          processed_emails: 0,
+          deliverable_count: 0,
+          undeliverable_count: 0,
+          risky_count: 0,
+          unknown_count: 0,
+        })
+        .eq('id', existingListId);
+
+      if (updateError) {
+        console.error('Error updating validation list:', updateError);
+        throw new Error('Failed to update validation list');
+      }
+      
+      validationListId = existingListId;
+      console.log(`Updated existing validation list: ${validationListId}`);
+    } else {
+      // Create new list
+      const { data: validationList, error: listError } = await supabaseAdmin
+        .from('validation_lists')
+        .insert({
+          name: listName || `Validation ${new Date().toISOString()}`,
+          user_id: user.id,
+          total_emails: emails.length,
+          status: 'processing',
+          processed_emails: 0,
+          deliverable_count: 0,
+          undeliverable_count: 0,
+          risky_count: 0,
+          unknown_count: 0,
+        })
+        .select()
+        .single();
+
+      if (listError) {
+        console.error('Error creating validation list:', listError);
+        throw new Error('Failed to create validation list');
+      }
+      
+      validationListId = validationList.id;
+      console.log(`Created new validation list: ${validationListId}`);
     }
-
-    console.log(`Created validation list: ${validationList.id}`);
 
     // Prepare data for Truelist Batch API
     // Format: [['email1@example.com'], ['email2@example.com'], ...]
@@ -123,7 +152,7 @@ serve(async (req) => {
       await supabaseAdmin
         .from('validation_lists')
         .update({ status: 'failed' })
-        .eq('id', validationList.id);
+        .eq('id', validationListId);
         
       throw new Error(`Truelist API error: ${truelistResponse.status} - ${errorText}`);
     }
@@ -137,13 +166,13 @@ serve(async (req) => {
       .update({ 
         truelist_batch_id: batchData.id,
       })
-      .eq('id', validationList.id);
+      .eq('id', validationListId);
 
     // Return success with list_id for polling
     return new Response(
       JSON.stringify({
         success: true,
-        list_id: validationList.id,
+        list_id: validationListId,
         truelist_batch_id: batchData.id,
         total_emails: emails.length,
         message: `Batch created successfully. Use list_id to check status.`,
