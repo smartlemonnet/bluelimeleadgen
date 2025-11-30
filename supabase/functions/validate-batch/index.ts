@@ -132,7 +132,9 @@ serve(async (req) => {
     // Create batch on Truelist
     const formData = new FormData();
     formData.append('data', JSON.stringify(emailData));
-    formData.append('filename', `${listName || 'validation'}.json`);
+    // Add timestamp to filename to avoid "Duplicate file upload" error from Truelist
+    const uniqueFilename = `${(listName || 'validation').slice(0, 30)}_${Date.now()}.json`;
+    formData.append('filename', uniqueFilename);
 
     console.log(`Creating Truelist batch for ${emails.length} emails...`);
 
