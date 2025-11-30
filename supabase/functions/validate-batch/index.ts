@@ -127,7 +127,12 @@ serve(async (req) => {
 
     // Prepare data for Truelist Batch API
     // Format: [['email1@example.com'], ['email2@example.com'], ...]
-    const emailData = emails.map(email => [email.trim().toLowerCase()]);
+    // Add a unique marker email to ensure payload uniqueness (Truelist checks content hash)
+    const uniqueMarker = `batch_${Date.now()}_${crypto.randomUUID().slice(0,8)}@marker.internal`;
+    const emailData = [
+      [uniqueMarker], // This will be marked invalid by Truelist but makes payload unique
+      ...emails.map(email => [email.trim().toLowerCase()])
+    ];
     
     // Create batch on Truelist
     const formData = new FormData();
