@@ -132,11 +132,12 @@ serve(async (req) => {
     // Create batch on Truelist
     const formData = new FormData();
     formData.append('data', JSON.stringify(emailData));
-    // Add timestamp to filename to avoid "Duplicate file upload" error from Truelist
-    const uniqueFilename = `${(listName || 'validation').slice(0, 30)}_${Date.now()}.json`;
+    // Add UUID + timestamp to filename to avoid "Duplicate file upload" error from Truelist
+    const randomId = crypto.randomUUID().slice(0, 8);
+    const uniqueFilename = `batch_${randomId}_${Date.now()}.json`;
     formData.append('filename', uniqueFilename);
 
-    console.log(`Creating Truelist batch for ${emails.length} emails...`);
+    console.log(`Creating Truelist batch for ${emails.length} emails with filename: ${uniqueFilename}`);
 
     const truelistResponse = await fetch('https://api.truelist.io/api/v1/batches', {
       method: 'POST',
