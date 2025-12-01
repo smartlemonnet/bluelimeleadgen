@@ -62,6 +62,46 @@ serve(async (req) => {
 
     console.log(`User ${user.id} validating ${emails.length} emails`);
 
+    // Check usage limits
+    const { data: allowed, error: limitError } = await supabaseClient.rpc('check_usage_limit', {
+      p_user_id: user.id,
+      p_metric: 'validations',
+      p_amount: emails.length
+    });
+
+    if (limitError) {
+      console.error('Error checking limits:', limitError);
+    } else if (allowed === false) {
+      return new Response(
+        JSON.stringify({ error: 'Monthly validation limit reached. Please upgrade your plan.' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check max emails per list limit
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('plan_id')
+      .eq('id', user.id)
+      .single();
+      
+    if (profile) {
+      const { data: plan } = await supabaseAdmin
+        .from('plans')
+        .select('max_emails_per_list')
+        .eq('id', profile.plan_id)
+        .single();
+        
+      if (plan && emails.length > plan.max_emails_per_list) {
+        return new Response(
+          JSON.stringify({ 
+            error: `List size exceeds plan limit. Your plan allows max ${plan.max_emails_per_list} emails per list.` 
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Get Truelist API key
     const truelistApiKey = Deno.env.get('TRUELIST_API_KEY');
     if (!truelistApiKey) {
@@ -99,6 +139,31 @@ serve(async (req) => {
       validationListId = existingListId;
       console.log(`Updated existing validation list: ${validationListId}`);
     } else {
+      // Check max lists limit
+      if (profile) {
+        const { data: plan } = await supabaseAdmin
+          .from('plans')
+          .select('max_lists')
+          .eq('id', profile.plan_id)
+          .single();
+          
+        if (plan) {
+          const { count } = await supabaseAdmin
+            .from('validation_lists')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id);
+            
+          if (count !== null && count >= plan.max_lists) {
+            return new Response(
+              JSON.stringify({ 
+                error: `You have reached the maximum number of lists (${plan.max_lists}) for your plan.` 
+              }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
+      }
+
       // Create new list
       const { data: validationList, error: listError } = await supabaseAdmin
         .from('validation_lists')
@@ -175,6 +240,19 @@ serve(async (req) => {
         truelist_batch_id: batchData.id,
       })
       .eq('id', validationListId);
+
+    // Increment usage stats
+    const { error: usageError } = await supabaseAdmin.rpc('increment_usage', {
+      p_user_id: user.id,
+      p_metric: 'validations',
+      p_amount: emails.length
+    });
+    
+    if (usageError) {
+      console.error('Error incrementing usage:', usageError);
+    } else {
+      console.log(`Incremented validation usage for user ${user.id} by ${emails.length}`);
+    }
 
     // Return success with list_id for polling
     return new Response(

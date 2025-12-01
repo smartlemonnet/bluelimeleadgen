@@ -60,10 +60,11 @@ const Searches = () => {
 
       setSearches(searchesRes.data || []);
       setContacts(contactsRes.data || []);
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "Errore",
-        description: error.message || "Errore nel caricamento dei dati",
+        description: errorMessage || "Errore nel caricamento dei dati",
         variant: "destructive",
       });
     } finally {
@@ -99,10 +100,11 @@ const Searches = () => {
         title: "Export completato",
         description: `File ${filename} scaricato con successo`,
       });
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "Errore",
-        description: error.message || "Errore nell'export",
+        description: errorMessage || "Errore nell'export",
         variant: "destructive",
       });
     }

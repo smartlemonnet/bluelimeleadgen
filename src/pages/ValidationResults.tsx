@@ -213,11 +213,12 @@ const ValidationResults = () => {
       // Reload data to show processing status
       await loadData(true);
 
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error starting validation:", error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "Errore",
-        description: error.message || "Impossibile avviare la validazione",
+        description: errorMessage || "Impossibile avviare la validazione",
         variant: "destructive",
       });
     } finally {

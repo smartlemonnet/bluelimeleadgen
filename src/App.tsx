@@ -14,6 +14,7 @@ import Searches from "./pages/Searches";
 import UserGuide from "./pages/UserGuide";
 import Validate from "./pages/Validate";
 import ValidationResults from "./pages/ValidationResults";
+import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -37,6 +38,7 @@ const App = () => (
           <Route path="/validate" element={<ProtectedRoute><Validate /></ProtectedRoute>} />
           <Route path="/validate/:listId" element={<ProtectedRoute><ValidationResults /></ProtectedRoute>} />
           <Route path="/guide" element={<ProtectedRoute><UserGuide /></ProtectedRoute>} />
+          <Route path="/pricing" element={<ProtectedRoute><Pricing /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

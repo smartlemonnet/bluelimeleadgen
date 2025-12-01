@@ -101,6 +101,35 @@ serve(async (req) => {
 
     console.log('User ID for this search:', userId);
 
+    // Check usage limits if user is authenticated
+    if (userId) {
+      // Check SEARCH limit first (1 search = 1 request)
+      const { data: searchAllowed, error: searchLimitError } = await supabase.rpc('check_usage_limit', {
+        p_user_id: userId,
+        p_metric: 'searches',
+        p_amount: 1
+      });
+
+      if (searchLimitError) {
+        console.error('Error checking search limits:', searchLimitError);
+      } else if (searchAllowed === false) {
+        throw new Error('Monthly search limit reached. Please upgrade your plan.');
+      }
+
+      // Check EMAIL limit (just to be safe, though we don't know exact amount yet)
+      const { data: allowed, error: limitError } = await supabase.rpc('check_usage_limit', {
+        p_user_id: userId,
+        p_metric: 'emails_found',
+        p_amount: 0 // Just check if they are already over limit
+      });
+
+      if (limitError) {
+        console.error('Error checking limits:', limitError);
+      } else if (allowed === false) {
+        throw new Error('Monthly email limit reached. Please upgrade your plan.');
+      }
+    }
+
     // Save search to database if user is authenticated
     let searchId: string | null = null;
     let listId: string | null = null;
@@ -252,6 +281,35 @@ serve(async (req) => {
         .update({ total_emails: allContacts.length })
         .eq('id', listId);
       console.log(`Updated validation list ${listId} with ${allContacts.length} emails`);
+    }
+
+    // Increment usage stats
+    if (userId) {
+      // Increment SEARCH count
+      const { error: searchUsageError } = await supabase.rpc('increment_usage', {
+        p_user_id: userId,
+        p_metric: 'searches',
+        p_amount: 1
+      });
+      
+      if (searchUsageError) {
+        console.error('Error incrementing search usage:', searchUsageError);
+      }
+
+      // Increment EMAIL count
+      if (allContacts.length > 0) {
+        const { error: usageError } = await supabase.rpc('increment_usage', {
+          p_user_id: userId,
+          p_metric: 'emails_found',
+          p_amount: allContacts.length
+        });
+        
+        if (usageError) {
+          console.error('Error incrementing usage:', usageError);
+        } else {
+          console.log(`Incremented usage for user ${userId} by ${allContacts.length} emails`);
+        }
+      }
     }
 
     return new Response(

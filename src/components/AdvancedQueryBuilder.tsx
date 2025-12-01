@@ -16,9 +16,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+export interface SearchParams {
+  query: string;
+  location?: string;
+  emailProviders: string[];
+  websites: string[];
+  targetNames: string[];
+  pages: number;
+}
+
+interface QueryTemplate {
+  id: string;
+  name: string;
+  query_pattern: string;
+  default_pages: number;
+  created_at: string;
+  user_id: string;
+}
+
 interface AdvancedQueryBuilderProps {
   onQueryGenerated: (query: string) => void;
-  onSearch: (searchParams: any) => void;
+  onSearch: (searchParams: SearchParams) => void;
 }
 
 export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQueryBuilderProps) => {
@@ -35,7 +53,7 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
   const [generatedQuery, setGeneratedQuery] = useState("");
   const [pages, setPages] = useState(10);
   const [templateName, setTemplateName] = useState("");
-  const [templates, setTemplates] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<QueryTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const { toast } = useToast();
 
@@ -184,7 +202,7 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
 
   const generateQuery = () => {
     // Build REAL search query for Google including all filters
-    let searchQueryParts: string[] = [];
+    const searchQueryParts: string[] = [];
 
     if (keyword) searchQueryParts.push(keyword);
     if (location) searchQueryParts.push(`"${location}"`);
@@ -238,7 +256,7 @@ export const AdvancedQueryBuilder = ({ onQueryGenerated, onSearch }: AdvancedQue
     if (!queryToSend) {
       generateQuery();
       // Wait for state update, use current values to build query
-      let parts: string[] = [];
+      const parts: string[] = [];
       if (keyword) parts.push(keyword);
       if (location) parts.push(`"${location}"`);
       if (websites.length > 0) {

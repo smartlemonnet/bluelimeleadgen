@@ -57,10 +57,11 @@ const Contacts = () => {
       }
 
       setContacts(allContacts);
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "Errore",
-        description: error.message || "Errore nel caricamento dei contatti",
+        description: errorMessage || "Errore nel caricamento dei contatti",
         variant: "destructive",
       });
     } finally {

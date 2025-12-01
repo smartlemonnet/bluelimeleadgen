@@ -6,6 +6,7 @@ import { Search, Mail, Zap, LogOut, CheckCircle, BookOpen } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { UsageStats } from "@/components/UsageStats";
 
 
 const Dashboard = () => {
@@ -112,6 +113,17 @@ const Dashboard = () => {
                   Validazione Email
                 </Button>
               </div>
+            </div>
+
+            {/* Usage Stats */}
+            <div className="mb-8">
+              <h2 
+                className="text-xl font-semibold mb-4 flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"
+                onClick={() => navigate('/pricing')}
+              >
+                <span className="text-primary">⚡</span> Il tuo Piano
+              </h2>
+              <UsageStats />
             </div>
 
             {/* Stats Cards */}

@@ -26,6 +26,14 @@ interface Batch {
   completed_at: string | null;
 }
 
+interface Job {
+  query: string;
+  location: string | null;
+  pages: number;
+  target_names: string[] | null;
+  country: string;
+}
+
 export default function BatchManager() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -56,10 +64,11 @@ export default function BatchManager() {
 
       if (error) throw error;
       setBatches(data || []);
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "Errore",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -107,7 +116,7 @@ export default function BatchManager() {
     }
 
     try {
-      let jobs: any[] = [];
+      let jobs: Job[] = [];
       
       // Parsing CSV solo se presente - supporta virgolette per campi con virgole
       if (csvContent.trim()) {
@@ -146,7 +155,7 @@ export default function BatchManager() {
         };
 
         // Costruisci i job gestendo anche il caso in cui il country sia su una riga separata
-        const rows: any[] = [];
+        const rows: Job[] = [];
         for (const line of linesArr.slice(1)) {
           const parts = parseLine(line, delimiter).map(p => p.trim());
 
@@ -182,7 +191,7 @@ export default function BatchManager() {
             continue;
           }
 
-          const job = {
+          const job: Job = {
             query,
             location: location && location.length > 0 ? location : null,
             pages: Number.isFinite(pagesParsed) ? pagesParsed : 10,
@@ -244,10 +253,11 @@ export default function BatchManager() {
       setShowCreateForm(false);
       loadBatches();
 
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "Errore",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -273,10 +283,11 @@ export default function BatchManager() {
       // Trigger immediate processing
       await supabase.functions.invoke('process-search-queue');
 
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "Errore",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -295,10 +306,11 @@ export default function BatchManager() {
       });
 
       loadBatches();
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "Errore",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -318,10 +330,11 @@ export default function BatchManager() {
       });
 
       loadBatches();
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "Errore",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -398,10 +411,11 @@ export default function BatchManager() {
         title: "✓ Export completato",
         description: `${jobs.length} ricerche esportate`,
       });
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "Errore",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     }
